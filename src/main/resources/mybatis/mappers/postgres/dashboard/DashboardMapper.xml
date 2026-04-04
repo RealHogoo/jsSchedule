@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.realhogoo.jsschedule.dashboard.mapper.DashboardMapper">
+
+    <select id="selectSummary" parameterType="map" resultType="map">
+        SELECT
+            (SELECT COUNT(*) FROM schedule_project) AS project_total,
+            (SELECT COUNT(*) FROM schedule_project WHERE project_status = 'PLANNING') AS project_planning,
+            (SELECT COUNT(*) FROM schedule_project WHERE project_status = 'IN_PROGRESS') AS project_in_progress,
+            (SELECT COUNT(*) FROM schedule_project WHERE project_status = 'DONE') AS project_done,
+            (SELECT COUNT(*) FROM schedule_task) AS task_total,
+            (SELECT COUNT(*) FROM schedule_task WHERE task_status = 'TODO') AS task_todo,
+            (SELECT COUNT(*) FROM schedule_task WHERE task_status = 'IN_PROGRESS') AS task_in_progress,
+            (SELECT COUNT(*) FROM schedule_task WHERE task_status = 'DONE') AS task_done,
+            (SELECT COUNT(*) FROM schedule_task WHERE due_date &lt; CURRENT_DATE AND task_status &lt;&gt; 'DONE') AS overdue_task_count,
+            (SELECT COUNT(*) FROM schedule_milestone WHERE due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30) AS upcoming_milestone_count
+    </select>
+</mapper>

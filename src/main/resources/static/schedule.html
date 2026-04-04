@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>schedule-service dashboard</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body class="schedule-page">
+    <main class="dashboard-shell">
+        <section class="panel dashboard-hero">
+            <div>
+                <div class="login-eyebrow">SCHEDULE SERVICE</div>
+                <h1 class="dashboard-title">로그인 확인</h1>
+                <p class="dashboard-desc">admin-service 인증을 사용해 schedule-service에 로그인된 상태입니다.</p>
+            </div>
+            <div class="btns">
+                <button type="button" id="btnRefresh" class="btn">새로고침</button>
+                <button type="button" id="btnLogout" class="btn btn-danger">로그아웃</button>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <article class="panel">
+                <div class="panel-title">현재 사용자</div>
+                <dl id="currentUser" class="info-list"></dl>
+            </article>
+
+            <article class="panel">
+                <div class="panel-title">요약</div>
+                <dl id="summaryInfo" class="info-list"></dl>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        window.CTX = "";
+    </script>
+    <script src="/js/ux.js"></script>
+    <script src="/js/schedule.js"></script>
+</body>
+</html>

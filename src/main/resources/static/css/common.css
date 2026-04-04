@@ -1,0 +1,239 @@
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+    color: #1f2937;
+    background: #f8fafc;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+.panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn-danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+    background: #fff5f5;
+}
+
+.input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-item > label {
+    font-size: 12px;
+    color: #475569;
+}
+
+.form-item.full {
+    width: 100%;
+}
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 12px;
+    background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.1), transparent 30%),
+        linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+}
+
+.login-shell {
+    width: min(100%, 440px);
+    padding: 28px;
+}
+
+.login-head {
+    margin-bottom: 18px;
+}
+
+.login-eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #2563eb;
+    margin-bottom: 10px;
+}
+
+.login-title,
+.dashboard-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+    color: #0f172a;
+}
+
+.login-desc,
+.dashboard-desc {
+    margin: 10px 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.login-input {
+    height: 44px;
+    font-size: 14px;
+}
+
+.login-msg {
+    min-height: 22px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.login-msg.is-success {
+    color: #166534;
+}
+
+.login-msg.is-error {
+    color: #b91c1c;
+}
+
+.login-msg.is-warn {
+    color: #b45309;
+}
+
+.login-msg.is-info {
+    color: #1d4ed8;
+}
+
+.login-submit {
+    width: 100%;
+    height: 46px;
+    border: 0;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+}
+
+.login-submit:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.login-hint {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+}
+
+.schedule-page {
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 28%),
+        linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+}
+
+.dashboard-shell {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 16px 40px;
+}
+
+.dashboard-hero {
+    padding: 24px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.panel-title {
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.dashboard-grid .panel {
+    padding: 24px;
+}
+
+.info-list {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 10px 16px;
+    margin: 0;
+}
+
+.info-list dt {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.info-list dd {
+    margin: 0;
+    font-size: 14px;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .dashboard-hero {
+        flex-direction: column;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .info-list {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.realhogoo.jsschedule.project.mapper.ProjectMapper">
+
+    <select id="selectProjectList" parameterType="map" resultType="map">
+        SELECT
+            p.project_id,
+            p.project_key,
+            p.project_name,
+            p.project_status,
+            p.start_date,
+            p.end_date,
+            p.owner_user_id,
+            COUNT(DISTINCT t.task_id) AS task_count,
+            COUNT(DISTINCT m.milestone_id) AS milestone_count
+        FROM schedule_project p
+        LEFT JOIN schedule_task t ON t.project_id = p.project_id
+        LEFT JOIN schedule_milestone m ON m.project_id = p.project_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    p.project_name ILIKE CONCAT('%', #{keyword}, '%')
+                    OR p.project_key ILIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="project_status != null and project_status != ''">
+                AND p.project_status = #{project_status}
+            </if>
+            <if test="owner_user_id != null and owner_user_id != ''">
+                AND p.owner_user_id = #{owner_user_id}
+            </if>
+        </where>
+        GROUP BY
+            p.project_id,
+            p.project_key,
+            p.project_name,
+            p.project_status,
+            p.start_date,
+            p.end_date,
+            p.owner_user_id
+        ORDER BY p.project_id DESC
+    </select>
+</mapper>

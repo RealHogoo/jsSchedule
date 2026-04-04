@@ -15,6 +15,14 @@
         return document.getElementById(id);
     }
 
+    function qs(sel, root) {
+        return (root || document).querySelector(sel);
+    }
+
+    function qsa(sel, root) {
+        return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+    }
+
     function normalizeText(value, fallback) {
         if (value === null || value === undefined) {
             return fallback || "";
@@ -26,6 +34,29 @@
     function setDisabled(el, disabled) {
         if (!el) return;
         el.disabled = !!disabled;
+    }
+
+    function setText(selectorOrEl, value, root) {
+        var el = typeof selectorOrEl === "string" ? qs(selectorOrEl, root) : selectorOrEl;
+        if (el) el.textContent = value == null ? "" : String(value);
+    }
+
+    function esc(value) {
+        if (value === null || value === undefined) return "";
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function bindOnce(el, evt, handler, key) {
+        if (!el) return;
+        var boundKey = key || ("bound_" + evt);
+        if (el.dataset && el.dataset[boundKey] === "1") return;
+        if (el.dataset) el.dataset[boundKey] = "1";
+        el.addEventListener(evt, handler);
     }
 
     function localGet(key, fallback) {
@@ -70,13 +101,43 @@
         });
     }
 
+    function authHeaders() {
+        var headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        };
+        var token = localGet("JWT", "");
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+        return headers;
+    }
+
+    function requestJson(url, body, options) {
+        var opts = options || {};
+        return fetch(url, {
+            method: opts.method || "POST",
+            headers: opts.headers || authHeaders(),
+            body: JSON.stringify(body || {})
+        }).then(function (response) {
+            return response.json();
+        });
+    }
+
     define("byId", byId);
+    define("qs", qs);
+    define("qsa", qsa);
     define("normalizeText", normalizeText);
     define("setDisabled", setDisabled);
+    define("setText", setText);
+    define("esc", esc);
+    define("bindOnce", bindOnce);
     define("localGet", localGet);
     define("localSet", localSet);
     define("localRemove", localRemove);
     define("sessionGet", sessionGet);
     define("sessionSet", sessionSet);
     define("sessionRemove", sessionRemove);
+    define("authHeaders", authHeaders);
+    define("requestJson", requestJson);
 })(window);

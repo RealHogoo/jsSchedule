@@ -4,12 +4,12 @@
     var UX = global.UX;
     var countdownTimer = null;
     var retryUntilMs = 0;
-    var MSG_READY = "다시 로그인할 수 있습니다.";
-    var MSG_RETRY_SUFFIX = "초 후 다시 시도하세요.";
-    var MSG_REQUIRED = "아이디와 비밀번호를 입력하세요.";
-    var MSG_FAIL = "로그인에 실패했습니다.";
-    var MSG_SUCCESS = "로그인되었습니다.";
-    var MSG_SERVER_ERROR = "서버 오류가 발생했습니다. 잠시 후 다시 시도하세요.";
+    var MSG_READY = "\uB2E4\uC2DC \uB85C\uADF8\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
+    var MSG_RETRY_SUFFIX = "\uCD08 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    var MSG_REQUIRED = "\uC544\uC774\uB514\uC640 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    var MSG_FAIL = "\uB85C\uADF8\uC778\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.";
+    var MSG_SUCCESS = "\uB85C\uADF8\uC778\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
+    var MSG_SERVER_ERROR = "\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
 
     function clearAuthStorage() {
         UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
@@ -92,15 +92,11 @@
     }
 
     function postLogin(body) {
-        return fetch("/login.json", {
-            method: "POST",
+        return UX.requestJson("/login.json", body || {}, {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json"
-            },
-            body: JSON.stringify(body || {})
-        }).then(function (response) {
-            return response.json();
+            }
         });
     }
 

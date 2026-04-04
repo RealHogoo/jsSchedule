@@ -3,40 +3,19 @@
 
     var UX = global.UX;
 
-    function token() {
-        return UX.localGet("JWT", "");
-    }
-
-    function authHeaders() {
-        var headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        };
-        if (token()) {
-            headers.Authorization = "Bearer " + token();
-        }
-        return headers;
-    }
-
     function redirectToLogin() {
         global.location.href = "/";
     }
 
     function request(url) {
-        return fetch(url, {
-            method: "POST",
-            headers: authHeaders(),
-            body: "{}"
-        }).then(function (response) {
-            return response.json();
-        });
+        return UX.requestJson(url, {});
     }
 
     function bindInfo(targetId, rows) {
-        var target = document.getElementById(targetId);
+        var target = UX.byId(targetId);
         if (!target) return;
         target.innerHTML = rows.map(function (row) {
-            return "<dt>" + row.label + "</dt><dd>" + row.value + "</dd>";
+            return "<dt>" + UX.esc(row.label) + "</dt><dd>" + UX.esc(row.value) + "</dd>";
         }).join("");
     }
 
@@ -76,17 +55,13 @@
     }
 
     function logout() {
-        fetch("/logout.json", {
-            method: "POST",
-            headers: authHeaders(),
-            body: "{}"
-        }).finally(function () {
+        UX.requestJson("/logout.json", {}).finally(function () {
             UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
             redirectToLogin();
         });
     }
 
-    document.getElementById("btnRefresh").addEventListener("click", load);
-    document.getElementById("btnLogout").addEventListener("click", logout);
+    UX.bindOnce(UX.byId("btnRefresh"), "click", load);
+    UX.bindOnce(UX.byId("btnLogout"), "click", logout);
     load();
 })(window);

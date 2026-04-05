@@ -13,7 +13,7 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> ok(T data, String traceId) {
         ApiResponse<T> response = new ApiResponse<T>();
         response.ok = true;
-        response.code = ApiCode.OK.name();
+        response.code = ApiErrorSupport.code(ApiCode.OK);
         response.message = "success";
         response.data = data;
         response.meta = ApiMeta.now(traceId);
@@ -25,7 +25,7 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> fail(ApiCode code, String message, HttpServletRequest request) {
-        return fail(code.name(), message == null ? code.defaultMessage() : message, null, TraceId.resolve(request));
+        return fail(ApiErrorSupport.code(code), message == null ? ApiErrorSupport.message(code) : message, null, TraceId.resolve(request));
     }
 
     public static <T> ApiResponse<T> fail(String code, String message, T data, String traceId) {

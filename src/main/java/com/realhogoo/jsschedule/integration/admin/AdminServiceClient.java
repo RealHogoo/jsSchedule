@@ -74,6 +74,10 @@ public class AdminServiceClient {
         return post("/logout.json", Collections.<String, Object>emptyMap(), accessToken);
     }
 
+    public Map<String, Object> userOptions(Map<String, Object> body, String accessToken) {
+        return post("/user/options.json", body, accessToken);
+    }
+
     private Map<String, Object> post(String path, Map<String, Object> body, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

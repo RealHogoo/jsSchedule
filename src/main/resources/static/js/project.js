@@ -1,0 +1,204 @@
+(function (global) {
+    "use strict";
+
+    var UX = global.UX;
+    var state = {
+        projects: [],
+        sidebarOpen: false
+    };
+
+    function redirectToLogin() {
+        global.location.href = "/";
+    }
+
+    function navigateToForm(projectId) {
+        global.location.href = projectId ? ("/project-form.html?project_id=" + encodeURIComponent(projectId)) : "/project-form.html";
+    }
+
+    function readFilters() {
+        return {
+            keyword: UX.byId("filterKeyword").value.trim(),
+            project_status: UX.byId("filterStatus").value,
+            owner_user_id: UX.byId("filterOwner").value.trim()
+        };
+    }
+
+    function bindInfo(targetId, rows) {
+        var target = UX.byId(targetId);
+        if (!target) return;
+        target.innerHTML = rows.map(function (row) {
+            return "<dt>" + UX.esc(row.label) + "</dt><dd>" + UX.esc(row.value) + "</dd>";
+        }).join("");
+    }
+
+    function renderSummary(summary) {
+        var target = UX.byId("summaryCards");
+        if (!target) return;
+
+        var cards = [
+            { label: "전체 프로젝트", value: summary.project_total || 0 },
+            { label: "진행 중", value: summary.project_in_progress || 0 },
+            { label: "전체 태스크", value: summary.task_total || 0 },
+            { label: "임박 마일스톤", value: summary.upcoming_milestone_count || 0 }
+        ];
+
+        target.innerHTML = cards.map(function (card) {
+            return "<article class=\"summary-card\">"
+                + "<span>" + UX.esc(card.label) + "</span>"
+                + "<strong>" + UX.esc(String(card.value)) + "</strong>"
+                + "</article>";
+        }).join("");
+    }
+
+    function statusClass(status) {
+        var value = String(status || "").toLowerCase();
+        return value ? ("status-" + value.replace(/[^a-z0-9]+/g, "-")) : "";
+    }
+
+    function formatPeriod(startDate, endDate) {
+        return (startDate ? String(startDate) : "-") + " ~ " + (endDate ? String(endDate) : "-");
+    }
+
+    function renderTable() {
+        var target = UX.byId("projectRows");
+        if (!target) return;
+
+        UX.setText("projectCount", String(state.projects.length));
+
+        if (!state.projects.length) {
+            target.innerHTML = "<tr><td colspan=\"6\" class=\"empty-row\">조회된 프로젝트가 없습니다.</td></tr>";
+            return;
+        }
+
+        target.innerHTML = state.projects.map(function (project) {
+            var id = String(project.project_id);
+            return "<tr class=\"table-row\" data-project-id=\"" + UX.esc(id) + "\">"
+                + "<td><button type=\"button\" class=\"row-link\" data-project-id=\"" + UX.esc(id) + "\">"
+                + "<span class=\"row-title\">" + UX.esc(project.project_name || "-") + "</span>"
+                + "<span class=\"row-sub\">" + UX.esc(project.project_key || "-") + "</span>"
+                + "</button></td>"
+                + "<td><span class=\"status-chip " + UX.esc(statusClass(project.project_status)) + "\">" + UX.esc(project.project_status || "-") + "</span></td>"
+                + "<td>" + UX.esc(formatPeriod(project.start_date, project.end_date)) + "</td>"
+                + "<td>" + UX.esc(project.owner_user_id || "-") + "</td>"
+                + "<td>" + UX.esc(String(project.task_count || 0)) + "</td>"
+                + "<td>" + UX.esc(String(project.milestone_count || 0)) + "</td>"
+                + "</tr>";
+        }).join("");
+
+        UX.qsa(".row-link", target).forEach(function (button) {
+            UX.bindOnce(button, "click", function () {
+                navigateToForm(button.getAttribute("data-project-id"));
+            });
+        });
+    }
+
+    function isMobileViewport() {
+        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
+    }
+
+    function setSidebarOpen(open) {
+        var sidebar = UX.byId("workspaceSidebar");
+        var toggle = UX.byId("btnSidebarToggle");
+        state.sidebarOpen = !!open;
+        if (!sidebar || !toggle) return;
+
+        if (isMobileViewport()) {
+            sidebar.classList.toggle("is-open", state.sidebarOpen);
+            toggle.setAttribute("aria-expanded", state.sidebarOpen ? "true" : "false");
+            UX.setText(toggle, state.sidebarOpen ? "닫기" : "메뉴");
+        } else {
+            sidebar.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "true");
+            UX.setText(toggle, "메뉴");
+        }
+    }
+
+    function syncSidebarMode() {
+        setSidebarOpen(!isMobileViewport());
+    }
+
+    function loadProjectList() {
+        UX.byId("projectRows").innerHTML = "<tr><td colspan=\"6\" class=\"empty-row\">프로젝트를 조회하는 중입니다.</td></tr>";
+        return UX.requestJson("/project/list.json", readFilters()).then(function (response) {
+            if (!response || response.ok !== true) {
+                redirectToLogin();
+                return;
+            }
+            state.projects = Array.isArray(response.data) ? response.data : [];
+            renderTable();
+        }).catch(function () {
+            redirectToLogin();
+        });
+    }
+
+    function loadContext() {
+        return Promise.all([
+            UX.requestJson("/auth/me.json", {}),
+            UX.requestJson("/dashboard/summary.json", {})
+        ]).then(function (results) {
+            var me = results[0];
+            var dashboard = results[1];
+            if (!me || me.ok !== true || !dashboard || dashboard.ok !== true) {
+                redirectToLogin();
+                return;
+            }
+
+            var user = me.data || {};
+            var summary = (dashboard.data && dashboard.data.summary) || {};
+
+            bindInfo("currentUser", [
+                { label: "아이디", value: user.user_id || "-" },
+                { label: "이름", value: user.user_nm || "-" },
+                { label: "권한", value: (user.roles || []).join(", ") || "-" }
+            ]);
+
+            renderSummary(summary);
+        }).catch(function () {
+            redirectToLogin();
+        });
+    }
+
+    function resetFilters() {
+        UX.byId("filterKeyword").value = "";
+        UX.byId("filterStatus").value = "";
+        UX.byId("filterOwner").value = "";
+        loadProjectList();
+    }
+
+    function logout() {
+        UX.requestJson("/logout.json", {}).finally(function () {
+            UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+            redirectToLogin();
+        });
+    }
+
+    function bindEvents() {
+        UX.bindOnce(UX.byId("btnSearch"), "click", loadProjectList);
+        UX.bindOnce(UX.byId("btnReset"), "click", resetFilters);
+        UX.bindOnce(UX.byId("btnReload"), "click", function () {
+            loadContext().then(loadProjectList);
+        });
+        UX.bindOnce(UX.byId("btnLogout"), "click", logout);
+        UX.bindOnce(UX.byId("btnNewProject"), "click", function () {
+            navigateToForm("");
+        });
+        UX.bindOnce(UX.byId("btnSidebarToggle"), "click", function () {
+            setSidebarOpen(!state.sidebarOpen);
+        });
+
+        ["filterKeyword", "filterOwner"].forEach(function (id) {
+            UX.bindOnce(UX.byId(id), "keydown", function (event) {
+                if (event.key === "Enter") {
+                    loadProjectList();
+                }
+            });
+        });
+
+        UX.bindOnce(UX.byId("filterStatus"), "change", loadProjectList);
+        global.addEventListener("resize", syncSidebarMode);
+    }
+
+    bindEvents();
+    syncSidebarMode();
+    loadContext().then(loadProjectList);
+})(window);

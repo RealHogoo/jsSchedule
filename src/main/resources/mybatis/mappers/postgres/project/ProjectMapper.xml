@@ -40,4 +40,80 @@
             p.owner_user_id
         ORDER BY p.project_id DESC
     </select>
+
+    <select id="selectProjectDetail" parameterType="map" resultType="map">
+        SELECT
+            p.project_id,
+            p.project_key,
+            p.project_name,
+            p.project_status,
+            p.owner_user_id,
+            p.start_date,
+            p.end_date,
+            p.description,
+            p.created_at,
+            p.updated_at,
+            COUNT(DISTINCT pm.project_member_id) AS member_count,
+            COUNT(DISTINCT t.task_id) AS task_count,
+            COUNT(DISTINCT m.milestone_id) AS milestone_count
+        FROM schedule_project p
+        LEFT JOIN schedule_project_member pm ON pm.project_id = p.project_id
+        LEFT JOIN schedule_task t ON t.project_id = p.project_id
+        LEFT JOIN schedule_milestone m ON m.project_id = p.project_id
+        WHERE p.project_id = #{project_id}
+        GROUP BY
+            p.project_id,
+            p.project_key,
+            p.project_name,
+            p.project_status,
+            p.owner_user_id,
+            p.start_date,
+            p.end_date,
+            p.description,
+            p.created_at,
+            p.updated_at
+    </select>
+
+    <select id="countProjectKey" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_project
+        WHERE project_key = #{project_key}
+        <if test="project_id != null">
+            AND project_id != #{project_id}
+        </if>
+    </select>
+
+    <insert id="insertProject" parameterType="map" useGeneratedKeys="true" keyProperty="project_id" keyColumn="project_id">
+        INSERT INTO schedule_project (
+            project_key,
+            project_name,
+            project_status,
+            owner_user_id,
+            start_date,
+            end_date,
+            description
+        ) VALUES (
+            #{project_key},
+            #{project_name},
+            #{project_status},
+            #{owner_user_id},
+            CAST(#{start_date} AS DATE),
+            CAST(#{end_date} AS DATE),
+            #{description}
+        )
+    </insert>
+
+    <update id="updateProject" parameterType="map">
+        UPDATE schedule_project
+        SET
+            project_key = #{project_key},
+            project_name = #{project_name},
+            project_status = #{project_status},
+            owner_user_id = #{owner_user_id},
+            start_date = CAST(#{start_date} AS DATE),
+            end_date = CAST(#{end_date} AS DATE),
+            description = #{description},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE project_id = #{project_id}
+    </update>
 </mapper>

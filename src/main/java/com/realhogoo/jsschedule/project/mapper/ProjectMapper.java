@@ -8,4 +8,8 @@ import java.util.Map;
 @Mapper
 public interface ProjectMapper {
     List<Map<String, Object>> selectProjectList(Map<String, Object> params);
+    Map<String, Object> selectProjectDetail(Map<String, Object> params);
+    int countProjectKey(Map<String, Object> params);
+    int insertProject(Map<String, Object> params);
+    int updateProject(Map<String, Object> params);
 }

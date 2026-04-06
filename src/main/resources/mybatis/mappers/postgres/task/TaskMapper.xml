@@ -19,7 +19,19 @@
         INNER JOIN schedule_project p ON p.project_id = t.project_id
         LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
         <where>
-            <if test="project_id != null">
+            <if test="viewer_is_admin == null or viewer_is_admin == false">
+                AND (
+                    t.assignee_user_id = #{viewer_user_id}
+                    OR p.owner_user_id = #{viewer_user_id}
+                    OR EXISTS (
+                        SELECT 1
+                        FROM schedule_project_member pm
+                        WHERE pm.project_id = t.project_id
+                          AND pm.user_id = #{viewer_user_id}
+                    )
+                )
+            </if>
+            <if test="project_id != null and project_id != ''">
                 AND t.project_id = #{project_id}
             </if>
             <if test="assignee_user_id != null and assignee_user_id != ''">
@@ -37,4 +49,89 @@
         </where>
         ORDER BY t.due_date NULLS LAST, t.task_id DESC
     </select>
+
+    <select id="selectTaskDetail" parameterType="map" resultType="map">
+        SELECT
+            t.task_id,
+            t.project_id,
+            p.project_name,
+            t.task_title,
+            t.task_status,
+            t.priority,
+            t.assignee_user_id,
+            t.start_date,
+            t.due_date,
+            t.progress_rate,
+            t.description,
+            t.milestone_id,
+            m.milestone_name,
+            t.created_at,
+            t.updated_at
+        FROM schedule_task t
+        INNER JOIN schedule_project p ON p.project_id = t.project_id
+        LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
+        <where>
+            AND t.task_id = #{task_id}
+            <if test="viewer_is_admin == null or viewer_is_admin == false">
+                AND (
+                    t.assignee_user_id = #{viewer_user_id}
+                    OR p.owner_user_id = #{viewer_user_id}
+                    OR EXISTS (
+                        SELECT 1
+                        FROM schedule_project_member pm
+                        WHERE pm.project_id = t.project_id
+                          AND pm.user_id = #{viewer_user_id}
+                    )
+                )
+            </if>
+        </where>
+    </select>
+
+    <update id="syncTaskSequence">
+        SELECT setval(
+            pg_get_serial_sequence('schedule_task', 'task_id'),
+            COALESCE((SELECT MAX(task_id) FROM schedule_task), 0) + 1,
+            false
+        )
+    </update>
+
+    <insert id="insertTask" parameterType="map" useGeneratedKeys="true" keyProperty="task_id" keyColumn="task_id">
+        INSERT INTO schedule_task (
+            project_id,
+            task_title,
+            task_status,
+            priority,
+            assignee_user_id,
+            start_date,
+            due_date,
+            progress_rate,
+            description
+        ) VALUES (
+            #{project_id},
+            #{task_title},
+            #{task_status},
+            #{priority},
+            #{assignee_user_id},
+            CAST(#{start_date} AS DATE),
+            CAST(#{due_date} AS DATE),
+            #{progress_rate},
+            #{description}
+        )
+    </insert>
+
+    <update id="updateTask" parameterType="map">
+        UPDATE schedule_task
+        SET
+            project_id = #{project_id},
+            task_title = #{task_title},
+            task_status = #{task_status},
+            priority = #{priority},
+            assignee_user_id = #{assignee_user_id},
+            start_date = CAST(#{start_date} AS DATE),
+            due_date = CAST(#{due_date} AS DATE),
+            progress_rate = #{progress_rate},
+            description = #{description},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE task_id = #{task_id}
+    </update>
 </mapper>

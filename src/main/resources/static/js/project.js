@@ -63,8 +63,6 @@
         var target = UX.byId("projectRows");
         if (!target) return;
 
-        UX.setText("projectCount", String(state.projects.length));
-
         if (!state.projects.length) {
             target.innerHTML = "<tr><td colspan=\"6\" class=\"empty-row\">조회된 프로젝트가 없습니다.</td></tr>";
             return;
@@ -103,18 +101,20 @@
         if (!sidebar || !toggle) return;
 
         if (isMobileViewport()) {
-            sidebar.classList.toggle("is-open", state.sidebarOpen);
-            toggle.setAttribute("aria-expanded", state.sidebarOpen ? "true" : "false");
             UX.setText(toggle, state.sidebarOpen ? "닫기" : "메뉴");
+            sidebar.classList.toggle("is-open", state.sidebarOpen);
         } else {
-            sidebar.classList.remove("is-open");
-            toggle.setAttribute("aria-expanded", "true");
             UX.setText(toggle, "메뉴");
+            sidebar.classList.remove("is-open");
         }
     }
 
     function syncSidebarMode() {
-        setSidebarOpen(!isMobileViewport());
+        if (isMobileViewport()) {
+            setSidebarOpen(false);
+            return;
+        }
+        setSidebarOpen(true);
     }
 
     function loadProjectList() {
@@ -197,7 +197,6 @@
         UX.bindOnce(UX.byId("filterStatus"), "change", loadProjectList);
         global.addEventListener("resize", syncSidebarMode);
     }
-
     bindEvents();
     syncSidebarMode();
     loadContext().then(loadProjectList);

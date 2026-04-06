@@ -221,7 +221,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .workspace-shell {
-    max-width: 1440px;
+    max-width: 1680px;
     margin: 0 auto;
     padding: 24px 16px 32px;
     display: grid;
@@ -475,6 +475,34 @@ body::-webkit-scrollbar-thumb:hover,
     justify-content: flex-end;
 }
 
+.task-selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    margin-top: 14px;
+    padding: 14px 16px;
+    color: #134e4a;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 100%);
+    border: 1px solid #99f6e4;
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.task-selection-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0f766e;
+    font-weight: 700;
+}
+
+#selectedProjectName {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
 .table-head {
     display: flex;
     justify-content: space-between;
@@ -507,6 +535,12 @@ body::-webkit-scrollbar-thumb:hover,
     border-collapse: collapse;
 }
 
+.task-table td,
+.task-table th {
+    white-space: normal;
+    word-break: keep-all;
+}
+
 .data-table th,
 .data-table td {
     padding: 14px 12px;
@@ -524,6 +558,28 @@ body::-webkit-scrollbar-thumb:hover,
 
 .table-row.is-selected {
     background: #f0fdfa;
+}
+
+.data-table tbody tr.is-selected {
+    background: #f0fdfa;
+}
+
+.data-table tbody tr[data-project-id] {
+    cursor: pointer;
+    transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.data-table tbody tr[data-project-id]:hover {
+    background: #f8fafc;
+}
+
+.data-table tbody tr.is-selected td {
+    background: #ecfeff;
+    box-shadow: inset 0 1px 0 #bae6fd, inset 0 -1px 0 #bae6fd;
+}
+
+.data-table tbody tr.is-selected td:first-child {
+    box-shadow: inset 4px 0 0 #0f766e, inset 0 1px 0 #bae6fd, inset 0 -1px 0 #bae6fd;
 }
 
 .row-link {
@@ -570,6 +626,11 @@ body::-webkit-scrollbar-thumb:hover,
     color: #166534;
 }
 
+.status-chip.status-planning {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
 .status-chip.status-done {
     background: #ede9fe;
     color: #6d28d9;
@@ -578,6 +639,30 @@ body::-webkit-scrollbar-thumb:hover,
 .status-chip.status-hold {
     background: #fee2e2;
     color: #b91c1c;
+}
+
+.status-chip.status-on-hold {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.status-chip.priority-high {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.status-chip.priority-medium {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.status-chip.priority-low {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.task-filter-subrow {
+    margin-top: 14px;
 }
 
 .empty-row,
@@ -673,6 +758,11 @@ body::-webkit-scrollbar-thumb:hover,
 
 .detail-actions .btn {
     min-width: 112px;
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .modal-backdrop {
@@ -812,6 +902,10 @@ body::-webkit-scrollbar-thumb:hover,
         grid-template-columns: 1fr;
     }
 
+    .task-selection-bar {
+        padding: 4px 0 0;
+    }
+
     .detail-form-grid {
         grid-template-columns: 1fr;
     }
@@ -852,6 +946,26 @@ body::-webkit-scrollbar-thumb:hover,
     .detail-grid,
     .compact-info-list {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1280px) {
+    .workspace-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-sidebar {
+        position: static;
+        min-height: auto;
+    }
+
+    .project-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filter-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
     }
 }
 
@@ -926,6 +1040,13 @@ body::-webkit-scrollbar-thumb:hover,
     .data-table td:nth-child(4)::before { content: "PM"; }
     .data-table td:nth-child(5)::before { content: "태스크"; }
     .data-table td:nth-child(6)::before { content: "마일스톤"; }
+
+    .task-table td:nth-child(1)::before { content: "프로젝트"; }
+    .task-table td:nth-child(2)::before { content: "태스크"; }
+    .task-table td:nth-child(3)::before { content: "상태"; }
+    .task-table td:nth-child(4)::before { content: "담당자"; }
+    .task-table td:nth-child(5)::before { content: "기간"; }
+    .task-table td:nth-child(6)::before { content: "진행률"; }
 
     .empty-row {
         padding: 18px 0;

@@ -53,18 +53,20 @@
         if (!sidebar || !toggle) return;
 
         if (isMobileViewport()) {
-            sidebar.classList.toggle("is-open", state.sidebarOpen);
-            toggle.setAttribute("aria-expanded", state.sidebarOpen ? "true" : "false");
             UX.setText(toggle, state.sidebarOpen ? "닫기" : "메뉴");
+            sidebar.classList.toggle("is-open", state.sidebarOpen);
         } else {
-            sidebar.classList.remove("is-open");
-            toggle.setAttribute("aria-expanded", "true");
             UX.setText(toggle, "메뉴");
+            sidebar.classList.remove("is-open");
         }
     }
 
     function syncSidebarMode() {
-        setSidebarOpen(!isMobileViewport());
+        if (isMobileViewport()) {
+            setSidebarOpen(false);
+            return;
+        }
+        setSidebarOpen(true);
     }
 
     function setFormMessage(text, type) {
@@ -108,7 +110,6 @@
             "<span>마일스톤 " + UX.esc(String(project.milestone_count || 0)) + "</span>",
             "<span>멤버 " + UX.esc(String(project.member_count || 0)) + "</span>"
         ].join("") : "<span>신규 프로젝트 등록</span>";
-
         setFormMessage("", "");
     }
 

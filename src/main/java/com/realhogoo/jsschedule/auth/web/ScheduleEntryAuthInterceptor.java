@@ -22,7 +22,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         @Value("${admin-service.base-url}") String adminServiceBaseUrl
     ) {
         this.jwtProvider = jwtProvider;
-        this.adminServiceBaseUrl = adminServiceBaseUrl;
+        this.adminServiceBaseUrl = adminServiceBaseUrl == null ? "" : adminServiceBaseUrl.trim();
     }
 
     @Override

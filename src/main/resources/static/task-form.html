@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>schedule-service task settings</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body class="schedule-page">
+    <main class="workspace-shell">
+        <aside class="workspace-sidebar panel" id="workspaceSidebar">
+            <div class="brand-block">
+                <div class="brand-topline">
+                    <div>
+                        <div class="login-eyebrow">SCHEDULE SERVICE</div>
+                        <h1 class="workspace-title">Schedule Settings</h1>
+                    </div>
+                    <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
+                </div>
+                <p class="workspace-desc">선택한 프로젝트 컨텍스트 안에서 태스크의 기본 정보와 일정, 진행률을 관리합니다.</p>
+            </div>
+
+            <div id="sidebarCollapsible" class="sidebar-collapsible">
+                <nav class="workspace-nav" aria-label="서비스 메뉴">
+                    <a class="nav-link" href="/schedule.html">프로젝트</a>
+                    <a class="nav-link is-disabled" href="#" aria-disabled="true">대시보드</a>
+                    <a class="nav-link is-active" href="/task.html">일정</a>
+                    <a class="nav-link is-disabled" href="#" aria-disabled="true">캘린더</a>
+                </nav>
+
+                <div class="sidebar-body">
+                    <section class="sidebar-section">
+                        <div class="section-label">현재 사용자</div>
+                        <dl id="currentUser" class="compact-info-list"></dl>
+                    </section>
+
+                    <section class="sidebar-section">
+                        <div class="section-label">요약</div>
+                        <div id="summaryCards" class="summary-cards"></div>
+                    </section>
+                </div>
+
+                <div class="sidebar-footer">
+                    <div class="sidebar-note">
+                        <strong>Task settings</strong>
+                        <p>프로젝트를 바꾸는 화면이 아니라, 선택된 프로젝트 안에서 태스크를 등록하는 화면입니다.</p>
+                    </div>
+
+                    <div class="btns sidebar-actions">
+                        <button type="button" id="btnBackToTaskList" class="btn">목록으로</button>
+                        <button type="button" id="btnLogout" class="btn btn-danger">로그아웃</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="workspace-main">
+            <header class="workspace-hero panel">
+                <div>
+                    <div class="hero-kicker">TASK SETTINGS</div>
+                    <h2 id="taskFormPageTitle" class="workspace-heading">신규 태스크 등록</h2>
+                    <p class="workspace-copy">선택된 프로젝트를 고정값으로 두고 태스크만 입력합니다.</p>
+                </div>
+            </header>
+
+            <section class="panel project-form-page">
+                <div class="detail-head">
+                    <div>
+                        <div class="panel-title">태스크 정보</div>
+                        <p class="table-copy">프로젝트 선택 이후 단계의 전용 등록 화면입니다.</p>
+                    </div>
+                </div>
+
+                <form id="taskForm" class="project-form">
+                    <input type="hidden" id="taskId">
+                    <input type="hidden" id="taskProjectId">
+
+                    <div class="detail-form-grid">
+                        <div class="form-item">
+                            <label for="taskProjectName">프로젝트</label>
+                            <input id="taskProjectName" class="input" type="text" readonly>
+                        </div>
+
+                        <div class="form-item">
+                            <label for="taskAssigneeDisplay">담당자</label>
+                            <input id="taskAssigneeUserId" type="hidden">
+                            <div class="picker-row">
+                                <input id="taskAssigneeDisplay" class="input" type="text" placeholder="사용자를 선택하세요." readonly>
+                                <button type="button" id="btnPickAssignee" class="btn">선택</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-item">
+                        <label for="taskTitle">태스크명</label>
+                        <input id="taskTitle" class="input" type="text" placeholder="태스크명을 입력하세요.">
+                    </div>
+
+                    <div class="detail-form-grid">
+                        <div class="form-item">
+                            <label for="taskStatus">상태</label>
+                            <select id="taskStatus" class="input">
+                                <option value="TODO">TODO</option>
+                                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                                <option value="DONE">DONE</option>
+                                <option value="HOLD">HOLD</option>
+                            </select>
+                        </div>
+
+                        <div class="form-item">
+                            <label for="taskPriority">우선순위</label>
+                            <select id="taskPriority" class="input">
+                                <option value="HIGH">HIGH</option>
+                                <option value="MEDIUM">MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="detail-form-grid">
+                        <div class="form-item">
+                            <label for="taskStartDate">시작일</label>
+                            <input id="taskStartDate" class="input" type="date">
+                        </div>
+
+                        <div class="form-item">
+                            <label for="taskDueDate">종료일</label>
+                            <input id="taskDueDate" class="input" type="date">
+                        </div>
+                    </div>
+
+                    <div class="form-item">
+                        <label for="taskProgressRate">진행률</label>
+                        <input id="taskProgressRate" class="input" type="number" min="0" max="100" step="1" placeholder="0">
+                    </div>
+
+                    <div class="form-item">
+                        <label for="taskDescription">설명</label>
+                        <textarea id="taskDescription" class="input textarea" rows="6" placeholder="태스크 설명을 입력하세요."></textarea>
+                    </div>
+
+                    <div id="taskMeta" class="project-meta"></div>
+                    <div id="taskFormMsg" class="form-msg" aria-live="polite"></div>
+
+                    <div class="detail-actions">
+                        <button type="button" id="btnCancelTask" class="btn">돌아가기</button>
+                        <button type="button" id="btnSaveTask" class="btn btn-primary">저장</button>
+                    </div>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <div id="assigneeModal" class="modal-backdrop" hidden>
+        <div class="modal-panel">
+            <div class="detail-head">
+                <div>
+                    <div class="panel-title">담당자 선택</div>
+                    <p class="table-copy">사용자명 또는 아이디로 검색해서 선택합니다.</p>
+                </div>
+                <button type="button" id="btnCloseAssigneeModal" class="btn">닫기</button>
+            </div>
+
+            <div class="picker-search">
+                <input id="assigneeKeyword" class="input" type="text" placeholder="사용자명 또는 아이디 검색">
+                <button type="button" id="btnSearchAssignee" class="btn btn-primary">검색</button>
+            </div>
+
+            <div id="assigneeList" class="manager-list"></div>
+        </div>
+    </div>
+
+    <script src="/js/ux.js"></script>
+    <script src="/js/task-form.js"></script>
+</body>
+</html>

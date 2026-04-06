@@ -41,7 +41,7 @@ public class AdminServiceClient {
     ) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.adminServiceBaseUrl = adminServiceBaseUrl;
+        this.adminServiceBaseUrl = adminServiceBaseUrl == null ? "" : adminServiceBaseUrl.trim();
     }
 
     @SuppressWarnings("unchecked")

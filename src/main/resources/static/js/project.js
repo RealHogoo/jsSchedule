@@ -15,6 +15,11 @@
         global.location.href = projectId ? ("/project-form.html?project_id=" + encodeURIComponent(projectId)) : "/project-form.html";
     }
 
+    function navigateToTasks(projectId) {
+        if (!projectId) return;
+        global.location.href = "/task.html?project_id=" + encodeURIComponent(projectId);
+    }
+
     function readFilters() {
         return {
             keyword: UX.byId("filterKeyword").value.trim(),
@@ -85,7 +90,7 @@
 
         UX.qsa(".row-link", target).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
-                navigateToForm(button.getAttribute("data-project-id"));
+                navigateToTasks(button.getAttribute("data-project-id"));
             });
         });
     }

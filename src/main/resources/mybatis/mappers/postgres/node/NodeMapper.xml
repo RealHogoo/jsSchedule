@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.realhogoo.jsschedule.node.mapper.NodeMapper">
+
+    <sql id="TaskAccessWhere">
+        <if test="viewer_is_admin == null or viewer_is_admin == false">
+            AND (
+                t.assignee_user_id = #{viewer_user_id}
+                OR p.owner_user_id = #{viewer_user_id}
+                OR EXISTS (
+                    SELECT 1
+                    FROM schedule_project_member pm
+                    WHERE pm.project_id = t.project_id
+                      AND pm.user_id = #{viewer_user_id}
+                )
+            )
+        </if>
+    </sql>
+
+    <select id="selectTaskContext" parameterType="map" resultType="map">
+        SELECT
+            t.task_id,
+            t.project_id,
+            p.project_name,
+            t.task_title,
+            COALESCE(t.task_type_code, 'GENERAL') AS task_type_code
+        FROM schedule_task t
+        INNER JOIN schedule_project p ON p.project_id = t.project_id
+        <where>
+            AND t.task_id = #{task_id}
+            <include refid="TaskAccessWhere"/>
+        </where>
+    </select>
+
+    <select id="selectNodeTreeRows" parameterType="map" resultType="map">
+        SELECT
+            n.node_id,
+            n.task_id,
+            n.parent_node_id,
+            n.node_name,
+            n.node_type,
+            n.sort_order,
+            n.depth,
+            n.description,
+            n.use_yn,
+            COALESCE(child_counts.child_count, 0) AS child_count
+        FROM task_node n
+        INNER JOIN schedule_task t ON t.task_id = n.task_id
+        INNER JOIN schedule_project p ON p.project_id = t.project_id
+        LEFT JOIN (
+            SELECT parent_node_id, COUNT(*) AS child_count
+            FROM task_node
+            GROUP BY parent_node_id
+        ) child_counts ON child_counts.parent_node_id = n.node_id
+        <where>
+            AND n.task_id = #{task_id}
+            <include refid="TaskAccessWhere"/>
+        </where>
+        ORDER BY n.depth ASC, n.parent_node_id NULLS FIRST, n.sort_order ASC, n.node_id ASC
+    </select>
+
+    <select id="selectNodeDetail" parameterType="map" resultType="map">
+        SELECT
+            n.node_id,
+            n.task_id,
+            n.parent_node_id,
+            n.node_name,
+            n.node_type,
+            n.sort_order,
+            n.depth,
+            n.description,
+            n.use_yn,
+            n.created_by,
+            n.created_at,
+            n.updated_by,
+            n.updated_at,
+            t.task_title,
+            COALESCE(t.task_type_code, 'GENERAL') AS task_type_code,
+            p.project_id,
+            p.project_name
+        FROM task_node n
+        INNER JOIN schedule_task t ON t.task_id = n.task_id
+        INNER JOIN schedule_project p ON p.project_id = t.project_id
+        <where>
+            AND n.node_id = #{node_id}
+            <include refid="TaskAccessWhere"/>
+        </where>
+    </select>
+
+    <select id="selectNodeMetrics" parameterType="long" resultType="map">
+        SELECT
+            nmv.node_metric_value_id,
+            nmv.node_id,
+            nmv.metric_def_id,
+            d.metric_name,
+            d.include_in_stats_yn,
+            d.value_slot_count,
+            d.display_order,
+            nmv.value_1,
+            nmv.value_2,
+            nmv.value_3
+        FROM node_metric_value nmv
+        INNER JOIN task_type_metric_def d ON d.metric_def_id = nmv.metric_def_id
+        WHERE nmv.node_id = #{_parameter}
+        ORDER BY d.display_order ASC, d.metric_def_id ASC
+    </select>
+
+    <select id="selectNodeSummary" parameterType="long" resultType="map">
+        SELECT
+            node_id,
+            task_id,
+            parent_node_id,
+            sort_order,
+            depth
+        FROM task_node
+        WHERE node_id = #{_parameter}
+    </select>
+
+    <select id="selectTaskTypeMetricDef" parameterType="map" resultType="map">
+        SELECT
+            metric_def_id,
+            task_type_code,
+            metric_name,
+            include_in_stats_yn,
+            value_slot_count,
+            display_order,
+            use_yn
+        FROM task_type_metric_def
+        WHERE metric_def_id = #{metric_def_id}
+          AND task_type_code = #{task_type_code}
+          AND use_yn = 'Y'
+    </select>
+
+    <select id="selectTaskTypeList" resultType="map">
+        SELECT
+            task_type_code,
+            task_type_name,
+            description,
+            use_yn,
+            created_at,
+            updated_at
+        FROM schedule_task_type
+        WHERE use_yn = 'Y'
+        ORDER BY task_type_name ASC, task_type_code ASC
+    </select>
+
+    <select id="selectTaskTypeMetrics" parameterType="string" resultType="map">
+        SELECT
+            metric_def_id,
+            task_type_code,
+            metric_name,
+            include_in_stats_yn,
+            value_slot_count,
+            display_order,
+            use_yn,
+            created_at,
+            updated_at
+        FROM task_type_metric_def
+        WHERE task_type_code = #{_parameter}
+        ORDER BY display_order ASC, metric_def_id ASC
+    </select>
+
+    <select id="countTaskTypeMetrics" parameterType="string" resultType="int">
+        SELECT COUNT(*)
+        FROM task_type_metric_def
+        WHERE task_type_code = #{_parameter}
+          AND use_yn = 'Y'
+    </select>
+
+    <update id="syncTaskNodeSequence">
+        SELECT setval(
+            pg_get_serial_sequence('task_node', 'node_id'),
+            COALESCE((SELECT MAX(node_id) FROM task_node), 0) + 1,
+            false
+        )
+    </update>
+
+    <update id="syncTaskTypeMetricDefSequence">
+        SELECT setval(
+            pg_get_serial_sequence('task_type_metric_def', 'metric_def_id'),
+            COALESCE((SELECT MAX(metric_def_id) FROM task_type_metric_def), 0) + 1,
+            false
+        )
+    </update>
+
+    <update id="syncNodeMetricValueSequence">
+        SELECT setval(
+            pg_get_serial_sequence('node_metric_value', 'node_metric_value_id'),
+            COALESCE((SELECT MAX(node_metric_value_id) FROM node_metric_value), 0) + 1,
+            false
+        )
+    </update>
+
+    <select id="selectNextSortOrder" parameterType="map" resultType="int">
+        SELECT COALESCE(MAX(sort_order), 0) + 1
+        FROM task_node
+        WHERE task_id = #{task_id}
+        <choose>
+            <when test="parent_node_id == null">
+                AND parent_node_id IS NULL
+            </when>
+            <otherwise>
+                AND parent_node_id = #{parent_node_id}
+            </otherwise>
+        </choose>
+    </select>
+
+    <insert id="insertNode" parameterType="map" useGeneratedKeys="true" keyProperty="node_id" keyColumn="node_id">
+        INSERT INTO task_node (
+            task_id,
+            parent_node_id,
+            node_name,
+            node_type,
+            sort_order,
+            depth,
+            description,
+            use_yn,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{task_id},
+            #{parent_node_id},
+            #{node_name},
+            #{node_type},
+            #{sort_order},
+            #{depth},
+            #{description},
+            #{use_yn},
+            #{created_by},
+            #{updated_by}
+        )
+    </insert>
+
+    <update id="updateNode" parameterType="map">
+        UPDATE task_node
+        SET
+            parent_node_id = #{parent_node_id},
+            node_name = #{node_name},
+            node_type = #{node_type},
+            sort_order = #{sort_order},
+            depth = #{depth},
+            description = #{description},
+            use_yn = #{use_yn},
+            updated_by = #{updated_by},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE node_id = #{node_id}
+    </update>
+
+    <update id="updateNodePlacement" parameterType="map">
+        UPDATE task_node
+        SET
+            parent_node_id = #{parent_node_id},
+            sort_order = #{sort_order},
+            depth = #{depth},
+            updated_by = #{updated_by},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE node_id = #{node_id}
+    </update>
+
+    <update id="updateNodeSubtreeDepth" parameterType="map">
+        WITH RECURSIVE descendants AS (
+            SELECT node_id
+            FROM task_node
+            WHERE parent_node_id = #{node_id}
+            UNION ALL
+            SELECT child.node_id
+            FROM task_node child
+            INNER JOIN descendants d ON d.node_id = child.parent_node_id
+        )
+        UPDATE task_node
+        SET depth = depth + #{depth_delta},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE node_id IN (SELECT node_id FROM descendants)
+    </update>
+
+    <select id="countNodeChildren" parameterType="long" resultType="int">
+        SELECT COUNT(*)
+        FROM task_node
+        WHERE parent_node_id = #{_parameter}
+    </select>
+
+    <delete id="deleteNodeMetrics" parameterType="long">
+        DELETE FROM node_metric_value
+        WHERE node_id = #{_parameter}
+    </delete>
+
+    <delete id="deleteNode" parameterType="long">
+        DELETE FROM task_node
+        WHERE node_id = #{_parameter}
+    </delete>
+
+    <insert id="upsertNodeMetricValue" parameterType="map" useGeneratedKeys="true" keyProperty="node_metric_value_id" keyColumn="node_metric_value_id">
+        INSERT INTO node_metric_value (
+            node_id,
+            metric_def_id,
+            value_1,
+            value_2,
+            value_3,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{node_id},
+            #{metric_def_id},
+            #{value_1},
+            #{value_2},
+            #{value_3},
+            #{created_by},
+            #{updated_by}
+        )
+        ON CONFLICT (node_id, metric_def_id) DO UPDATE
+        SET
+            value_1 = EXCLUDED.value_1,
+            value_2 = EXCLUDED.value_2,
+            value_3 = EXCLUDED.value_3,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <insert id="upsertTaskTypeMetricDef" parameterType="map" useGeneratedKeys="true" keyProperty="metric_def_id" keyColumn="metric_def_id">
+        INSERT INTO task_type_metric_def (
+            task_type_code,
+            metric_name,
+            include_in_stats_yn,
+            value_slot_count,
+            display_order,
+            use_yn,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{task_type_code},
+            #{metric_name},
+            #{include_in_stats_yn},
+            #{value_slot_count},
+            #{display_order},
+            #{use_yn},
+            #{created_by},
+            #{updated_by}
+        )
+        ON CONFLICT (metric_def_id) DO UPDATE
+        SET
+            metric_name = EXCLUDED.metric_name,
+            include_in_stats_yn = EXCLUDED.include_in_stats_yn,
+            value_slot_count = EXCLUDED.value_slot_count,
+            display_order = EXCLUDED.display_order,
+            use_yn = EXCLUDED.use_yn,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <update id="deactivateTaskTypeMetricDefs" parameterType="map">
+        UPDATE task_type_metric_def
+        SET
+            use_yn = 'N',
+            updated_by = #{updated_by},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE task_type_code = #{task_type_code}
+        <if test="metric_ids != null and metric_ids.size() > 0">
+            AND metric_def_id NOT IN
+            <foreach collection="metric_ids" item="metricId" open="(" separator="," close=")">
+                #{metricId}
+            </foreach>
+        </if>
+    </update>
+</mapper>

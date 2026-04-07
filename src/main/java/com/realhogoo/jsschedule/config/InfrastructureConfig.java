@@ -4,6 +4,7 @@ import com.realhogoo.jsschedule.auth.jwt.JwtProvider;
 import com.realhogoo.jsschedule.calendar.mapper.CalendarMapper;
 import com.realhogoo.jsschedule.dashboard.mapper.DashboardMapper;
 import com.realhogoo.jsschedule.health.mapper.HealthMapper;
+import com.realhogoo.jsschedule.node.mapper.NodeMapper;
 import com.realhogoo.jsschedule.project.mapper.ProjectMapper;
 import com.realhogoo.jsschedule.task.mapper.TaskMapper;
 import com.zaxxer.hikari.HikariConfig;
@@ -33,6 +34,7 @@ import java.util.Properties;
 @MapperScan(basePackageClasses = {
     ProjectMapper.class,
     TaskMapper.class,
+    NodeMapper.class,
     CalendarMapper.class,
     DashboardMapper.class,
     HealthMapper.class

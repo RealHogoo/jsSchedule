@@ -6,17 +6,27 @@
         SELECT
             t.task_id,
             t.project_id,
+            t.parent_task_id,
+            t.task_type_code,
             p.project_name,
+            p.project_type_code,
             t.task_title,
             t.task_status,
             t.priority,
             t.assignee_user_id,
             t.start_date,
             t.due_date,
+            t.actual_start_date,
+            t.actual_end_date,
+            t.task_url,
+            t.support_amount,
+            t.actual_amount,
             t.progress_rate,
+            parent.task_title AS parent_task_title,
             m.milestone_name
         FROM schedule_task t
         INNER JOIN schedule_project p ON p.project_id = t.project_id
+        LEFT JOIN schedule_task parent ON parent.task_id = t.parent_task_id
         LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
         <where>
             <if test="viewer_is_admin == null or viewer_is_admin == false">
@@ -54,21 +64,31 @@
         SELECT
             t.task_id,
             t.project_id,
+            t.parent_task_id,
+            t.task_type_code,
             p.project_name,
+            p.project_type_code,
             t.task_title,
             t.task_status,
             t.priority,
             t.assignee_user_id,
             t.start_date,
             t.due_date,
+            t.actual_start_date,
+            t.actual_end_date,
+            t.task_url,
+            t.support_amount,
+            t.actual_amount,
             t.progress_rate,
             t.description,
             t.milestone_id,
+            parent.task_title AS parent_task_title,
             m.milestone_name,
             t.created_at,
             t.updated_at
         FROM schedule_task t
         INNER JOIN schedule_project p ON p.project_id = t.project_id
+        LEFT JOIN schedule_task parent ON parent.task_id = t.parent_task_id
         LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
         <where>
             AND t.task_id = #{task_id}
@@ -87,6 +107,35 @@
         </where>
     </select>
 
+    <select id="selectTaskReference" parameterType="map" resultType="map">
+        SELECT
+            task_id,
+            project_id,
+            parent_task_id,
+            task_title
+        FROM schedule_task
+        WHERE task_id = #{task_id}
+    </select>
+
+    <select id="selectProjectReference" parameterType="map" resultType="map">
+        SELECT
+            project_id,
+            project_type_code,
+            project_name
+        FROM schedule_project
+        WHERE project_id = #{project_id}
+    </select>
+
+    <select id="selectProjectTaskReferences" parameterType="map" resultType="map">
+        SELECT
+            task_id,
+            project_id,
+            parent_task_id,
+            task_title
+        FROM schedule_task
+        WHERE project_id = #{project_id}
+    </select>
+
     <update id="syncTaskSequence">
         SELECT setval(
             pg_get_serial_sequence('schedule_task', 'task_id'),
@@ -98,22 +147,36 @@
     <insert id="insertTask" parameterType="map" useGeneratedKeys="true" keyProperty="task_id" keyColumn="task_id">
         INSERT INTO schedule_task (
             project_id,
+            parent_task_id,
+            task_type_code,
             task_title,
             task_status,
             priority,
             assignee_user_id,
             start_date,
             due_date,
+            actual_start_date,
+            actual_end_date,
+            task_url,
+            support_amount,
+            actual_amount,
             progress_rate,
             description
         ) VALUES (
             #{project_id},
+            #{parent_task_id},
+            #{task_type_code},
             #{task_title},
             #{task_status},
             #{priority},
             #{assignee_user_id},
             CAST(#{start_date} AS DATE),
             CAST(#{due_date} AS DATE),
+            CAST(#{actual_start_date} AS DATE),
+            CAST(#{actual_end_date} AS DATE),
+            #{task_url},
+            #{support_amount},
+            #{actual_amount},
             #{progress_rate},
             #{description}
         )
@@ -123,12 +186,19 @@
         UPDATE schedule_task
         SET
             project_id = #{project_id},
+            parent_task_id = #{parent_task_id},
+            task_type_code = #{task_type_code},
             task_title = #{task_title},
             task_status = #{task_status},
             priority = #{priority},
             assignee_user_id = #{assignee_user_id},
             start_date = CAST(#{start_date} AS DATE),
             due_date = CAST(#{due_date} AS DATE),
+            actual_start_date = CAST(#{actual_start_date} AS DATE),
+            actual_end_date = CAST(#{actual_end_date} AS DATE),
+            task_url = #{task_url},
+            support_amount = #{support_amount},
+            actual_amount = #{actual_amount},
             progress_rate = #{progress_rate},
             description = #{description},
             updated_at = CURRENT_TIMESTAMP

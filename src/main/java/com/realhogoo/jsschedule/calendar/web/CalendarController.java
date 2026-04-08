@@ -20,6 +20,7 @@ public class CalendarController {
 
     @PostMapping("/calendar/month.json")
     public ApiResponse<Object> month(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
-        return ApiResponse.ok(calendarService.getMonthEvents(body), request);
+        String viewerUserId = request.getAttribute("user_id") == null ? "" : String.valueOf(request.getAttribute("user_id"));
+        return ApiResponse.ok(calendarService.getMonthEvents(body, viewerUserId), request);
     }
 }

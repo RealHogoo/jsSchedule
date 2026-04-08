@@ -13,7 +13,7 @@
     }
 
     function backToList() {
-        global.location.href = "/schedule.html";
+        global.location.href = "/project.html";
     }
 
     function queryParam(name) {
@@ -93,6 +93,7 @@
         UX.byId("projectId").value = state.projectId || "";
         UX.byId("projectKey").value = project && project.project_key ? String(project.project_key) : "";
         UX.byId("projectName").value = project && project.project_name ? String(project.project_name) : "";
+        UX.byId("projectTypeCode").value = project && project.project_type_code ? String(project.project_type_code) : "GENERAL";
         UX.byId("projectStatus").value = project && project.project_status ? String(project.project_status) : "PLANNING";
         UX.byId("projectOwner").value = project && project.owner_user_id ? String(project.owner_user_id) : (state.currentUser.user_id || "");
         UX.byId("projectOwnerDisplay").value = project
@@ -106,6 +107,7 @@
 
         UX.byId("projectMeta").innerHTML = isEdit ? [
             "<span>프로젝트 ID " + UX.esc(String(project.project_id || "-")) + "</span>",
+            "<span>유형 " + UX.esc(String(project.project_type_code || "GENERAL")) + "</span>",
             "<span>태스크 " + UX.esc(String(project.task_count || 0)) + "</span>",
             "<span>마일스톤 " + UX.esc(String(project.milestone_count || 0)) + "</span>",
             "<span>멤버 " + UX.esc(String(project.member_count || 0)) + "</span>"
@@ -135,12 +137,66 @@
             project_id: UX.byId("projectId").value.trim() || null,
             project_key: UX.byId("projectKey").value.trim(),
             project_name: UX.byId("projectName").value.trim(),
+            project_type_code: UX.byId("projectTypeCode").value,
             project_status: UX.byId("projectStatus").value,
             owner_user_id: UX.byId("projectOwner").value.trim(),
             start_date: UX.byId("projectStartDate").value || null,
             end_date: UX.byId("projectEndDate").value || null,
             description: UX.byId("projectDescription").value.trim()
         };
+    }
+
+    function clearFieldHighlight() {
+        UX.qsa(".input.is-warning-focus, .btn.is-warning-focus").forEach(function (element) {
+            element.classList.remove("is-warning-focus");
+        });
+    }
+
+    function focusField(fieldId) {
+        var target = UX.byId(fieldId);
+        if (!target) return;
+        clearFieldHighlight();
+        target.classList.add("is-warning-focus");
+        target.focus();
+    }
+
+    function showWarningModal(message, fieldId) {
+        UX.showAlertModal({
+            title: "확인 필요",
+            message: message,
+            onClose: function () {
+                if (fieldId) {
+                    focusField(fieldId);
+                }
+            }
+        });
+    }
+
+    function warningFieldIdFromMessage(message) {
+        if (!message) return "";
+        if (message.indexOf("project_key") >= 0 || message.indexOf("프로젝트 키") >= 0) return "projectKey";
+        if (message.indexOf("project_name") >= 0 || message.indexOf("프로젝트명") >= 0) return "projectName";
+        if (message.indexOf("project_type_code") >= 0 || message.indexOf("프로젝트 유형") >= 0) return "projectTypeCode";
+        if (message.indexOf("owner_user_id") >= 0 || message.indexOf("PM") >= 0) return "btnPickManager";
+        if (message.indexOf("start_date") >= 0 || message.indexOf("시작일") >= 0) return "projectStartDate";
+        if (message.indexOf("end_date") >= 0 || message.indexOf("종료일") >= 0) return "projectEndDate";
+        return "";
+    }
+
+    function validatePayload(payload) {
+        if (!payload.project_key) {
+            return { message: "프로젝트 키를 입력하세요.", fieldId: "projectKey" };
+        }
+        if (!payload.project_name) {
+            return { message: "프로젝트명을 입력하세요.", fieldId: "projectName" };
+        }
+        if (!payload.owner_user_id) {
+            return { message: "PM을 선택하세요.", fieldId: "btnPickManager" };
+        }
+        if (payload.start_date && payload.end_date && payload.start_date > payload.end_date) {
+            return { message: "시작일은 종료일보다 늦을 수 없습니다.", fieldId: "projectStartDate" };
+        }
+        return null;
     }
 
     function managerLabel(userNm, userId) {
@@ -205,20 +261,27 @@
     }
 
     function saveProject() {
+        var payload = createPayload();
+        var validationMessage = validatePayload(payload);
         setFormMessage("", "");
-        UX.requestJson("/project/save.json", createPayload()).then(function (response) {
+        if (validationMessage) {
+            showWarningModal(validationMessage.message, validationMessage.fieldId);
+            return;
+        }
+        UX.requestJson("/project/save.json", payload).then(function (response) {
             if (!response || response.ok !== true) {
-                setFormMessage(apiMessage(response, "알 수 없는 오류가 발생했습니다. 관리자에게 문의하세요."), "error");
+                showWarningModal(apiMessage(response, "알 수 없는 오류가 발생했습니다. 관리자에게 문의하세요."), warningFieldIdFromMessage(response && response.message));
                 return;
             }
             var project = response.data || {};
+            clearFieldHighlight();
             renderForm(project);
             setFormMessage("저장되었습니다.", "success");
             if (project.project_id) {
                 global.history.replaceState({}, "", "/project-form.html?project_id=" + encodeURIComponent(String(project.project_id)));
             }
         }).catch(function () {
-            setFormMessage("알 수 없는 오류가 발생했습니다. 관리자에게 문의하세요.", "error");
+            showWarningModal("알 수 없는 오류가 발생했습니다. 관리자에게 문의하세요.");
         });
     }
 
@@ -278,6 +341,14 @@
             if (event.key === "Enter") {
                 loadManagerOptions();
             }
+        });
+        ["projectKey", "projectName", "projectTypeCode", "projectStartDate", "projectEndDate", "projectOwnerDisplay", "btnPickManager"].forEach(function (id) {
+            var target = UX.byId(id);
+            if (!target) return;
+            target.addEventListener("focus", clearFieldHighlight);
+            target.addEventListener("input", clearFieldHighlight);
+            target.addEventListener("change", clearFieldHighlight);
+            target.addEventListener("click", clearFieldHighlight);
         });
         global.addEventListener("keydown", function (event) {
             if (event.key === "Escape") {

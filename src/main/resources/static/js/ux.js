@@ -124,6 +124,59 @@
         });
     }
 
+    function ensureAlertModal() {
+        var existing = byId("uxAlertModal");
+        if (existing) return existing;
+
+        var modal = document.createElement("div");
+        modal.id = "uxAlertModal";
+        modal.className = "modal-backdrop alert-modal-backdrop";
+        modal.hidden = true;
+        modal.innerHTML = ""
+            + "<div class=\"modal-panel alert-modal-panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"uxAlertTitle\">"
+            + "<div class=\"detail-head\">"
+            + "<div>"
+            + "<div id=\"uxAlertTitle\" class=\"panel-title\">안내</div>"
+            + "<p id=\"uxAlertMessage\" class=\"alert-modal-message\"></p>"
+            + "</div>"
+            + "<button type=\"button\" id=\"uxAlertClose\" class=\"btn btn-primary\">닫기</button>"
+            + "</div>"
+            + "</div>";
+
+        document.body.appendChild(modal);
+        bindOnce(byId("uxAlertClose"), "click", function () {
+            hideAlertModal();
+        });
+        bindOnce(modal, "click", function (event) {
+            if (event.target === modal) {
+                hideAlertModal();
+            }
+        });
+        return modal;
+    }
+
+    function showAlertModal(options) {
+        var modal = ensureAlertModal();
+        var config = options || {};
+        modal._onClose = typeof config.onClose === "function" ? config.onClose : null;
+        setText(byId("uxAlertTitle"), normalizeText(config.title, "안내"));
+        setText(byId("uxAlertMessage"), normalizeText(config.message, ""));
+        modal.hidden = false;
+        byId("uxAlertClose").focus();
+    }
+
+    function hideAlertModal() {
+        var modal = byId("uxAlertModal");
+        var onClose;
+        if (!modal) return;
+        onClose = modal._onClose;
+        modal._onClose = null;
+        modal.hidden = true;
+        if (typeof onClose === "function") {
+            onClose();
+        }
+    }
+
     define("byId", byId);
     define("qs", qs);
     define("qsa", qsa);
@@ -140,4 +193,6 @@
     define("sessionRemove", sessionRemove);
     define("authHeaders", authHeaders);
     define("requestJson", requestJson);
+    define("showAlertModal", showAlertModal);
+    define("hideAlertModal", hideAlertModal);
 })(window);

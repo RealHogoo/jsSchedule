@@ -99,6 +99,12 @@ body::-webkit-scrollbar-thumb:hover,
     background: #fff;
 }
 
+.input.is-warning-focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.14);
+    background: #fff7f7;
+}
+
 .form-item {
     display: flex;
     flex-direction: column;
@@ -108,6 +114,11 @@ body::-webkit-scrollbar-thumb:hover,
 .form-item > label {
     font-size: 12px;
     color: #475569;
+}
+
+.field-hint {
+    font-size: 12px;
+    color: #64748b;
 }
 
 .form-item.full {
@@ -706,6 +717,80 @@ body::-webkit-scrollbar-thumb:hover,
     color: inherit;
 }
 
+.task-tree-link {
+    padding-left: var(--task-tree-indent, 0px);
+}
+
+.task-tree-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.task-tree-icon {
+    position: relative;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.16);
+}
+
+.task-tree-icon::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 4px;
+    background: #1d4ed8;
+    opacity: 0.9;
+}
+
+.task-tree-icon.is-root {
+    border-radius: 999px;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    box-shadow: inset 0 0 0 1px rgba(22, 101, 52, 0.16);
+}
+
+.task-tree-icon.is-root::before {
+    inset: 5px;
+    border-radius: 999px;
+    background: #15803d;
+}
+
+.task-tree-icon.is-child {
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+    box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.14);
+}
+
+.task-tree-icon.is-child::before {
+    inset: auto;
+    width: 10px;
+    height: 10px;
+    left: 4px;
+    top: 4px;
+    border-radius: 3px;
+    background: #7c3aed;
+}
+
+.task-tree-depth {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #0c4a6e;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.task-tree-depth.is-root {
+    background: #dcfce7;
+    color: #166534;
+}
+
 .row-title {
     font-size: 15px;
     font-weight: 700;
@@ -829,6 +914,39 @@ body::-webkit-scrollbar-thumb:hover,
     gap: 8px;
 }
 
+.range-field {
+    display: grid;
+    gap: 10px;
+}
+
+.range-input {
+    width: 100%;
+    margin: 0;
+    accent-color: #0f766e;
+}
+
+.range-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.range-meta strong {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+#taskForm[data-project-type="BLOG"] #taskActualDateSection,
+#taskForm[data-project-type="BLOG"] #taskProgressSection,
+#taskForm[data-project-type="GENERAL"] #taskActualDateSection,
+#taskForm[data-project-type="GENERAL"] #taskBlogFieldSection,
+#taskForm[data-project-type="DEVELOPMENT"] #taskBlogFieldSection {
+    display: none !important;
+}
+
 .project-meta {
     display: flex;
     flex-wrap: wrap;
@@ -900,6 +1018,18 @@ body::-webkit-scrollbar-thumb:hover,
     border-radius: 22px;
     background: #fff;
     box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+}
+
+.alert-modal-panel {
+    width: min(100%, 420px);
+}
+
+.alert-modal-message {
+    margin: 8px 0 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    white-space: pre-wrap;
 }
 
 .picker-search {
@@ -1302,5 +1432,42 @@ body::-webkit-scrollbar-thumb:hover,
 
     .empty-row {
         padding: 18px 0;
+    }
+
+    .task-page-compact .task-table tr {
+        padding: 10px 0 14px;
+        border-bottom: 1px solid #dbe4f0;
+    }
+
+    .task-page-compact .task-table td:first-child {
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border: 1px solid #dbe4f0;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    }
+
+    .task-page-compact .task-tree-link {
+        padding-left: 0;
+    }
+
+    .task-page-compact .task-tree-main {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .task-page-compact .row-sub {
+        margin-left: 24px;
+        line-height: 1.5;
+    }
+
+    .task-page-compact .task-tree-icon {
+        width: 16px;
+        height: 16px;
+        flex-basis: 16px;
+    }
+
+    .task-page-compact .task-tree-depth {
+        margin-left: auto;
     }
 }

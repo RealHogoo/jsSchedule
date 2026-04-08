@@ -22,6 +22,35 @@
         el.className = "login-msg" + (type ? " is-" + type : "");
     }
 
+    function clearFieldHighlight() {
+        UX.qsa(".input.is-warning-focus, .btn.is-warning-focus").forEach(function (element) {
+            element.classList.remove("is-warning-focus");
+        });
+    }
+
+    function focusField(fieldId) {
+        var target = UX.byId(fieldId);
+        if (!target) return;
+        clearFieldHighlight();
+        target.classList.add("is-warning-focus");
+        target.focus();
+        if (typeof target.select === "function") {
+            target.select();
+        }
+    }
+
+    function showWarningModal(message, fieldId) {
+        UX.showAlertModal({
+            title: "확인 필요",
+            message: message,
+            onClose: function () {
+                if (fieldId) {
+                    focusField(fieldId);
+                }
+            }
+        });
+    }
+
     function setDisabled(disabled) {
         UX.setDisabled(UX.byId("btnLogin"), disabled);
         UX.setDisabled(UX.byId("login_user_id"), disabled);
@@ -105,7 +134,7 @@
         var userPw = (UX.byId("login_user_pw") && UX.byId("login_user_pw").value) || "";
 
         if (!userId || !userPw) {
-            setMsg(MSG_REQUIRED, "error");
+            showWarningModal(MSG_REQUIRED, !userId ? "login_user_id" : "login_user_pw");
             return;
         }
 
@@ -118,7 +147,7 @@
                     clearAuthStorage();
                     if (!applyDelayInfo(res && res.data ? res.data : null)) {
                         setDisabled(false);
-                        setMsg((res && res.message) ? res.message : MSG_FAIL, "error");
+                        showWarningModal((res && res.message) ? res.message : MSG_FAIL, "login_user_pw");
                     }
                     focusPassword();
                     return;
@@ -136,7 +165,7 @@
             .catch(function () {
                 clearAuthStorage();
                 setDisabled(false);
-                setMsg(MSG_SERVER_ERROR, "error");
+                showWarningModal(MSG_SERVER_ERROR);
             });
     }
 
@@ -156,6 +185,14 @@
         var pw = UX.byId("login_user_pw");
         if (userId) userId.onkeydown = handleEnter;
         if (pw) pw.onkeydown = handleEnter;
+        if (userId) {
+            userId.addEventListener("focus", clearFieldHighlight);
+            userId.addEventListener("input", clearFieldHighlight);
+        }
+        if (pw) {
+            pw.addEventListener("focus", clearFieldHighlight);
+            pw.addEventListener("input", clearFieldHighlight);
+        }
         restoreCountdown();
     }
 

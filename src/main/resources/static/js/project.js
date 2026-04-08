@@ -17,7 +17,7 @@
 
     function navigateToTasks(projectId) {
         if (!projectId) return;
-        global.location.href = "/task.html?project_id=" + encodeURIComponent(projectId);
+        global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId);
     }
 
     function readFilters() {

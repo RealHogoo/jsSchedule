@@ -19,6 +19,10 @@ import java.util.Set;
 
 @Service
 public class TaskServiceImpl implements TaskService {
+    private static final int MAX_TASK_DEPTH = 3;
+    private static final Set<String> ALLOWED_TASK_TYPES = new HashSet<String>(
+        Arrays.asList("GENERAL", "DEVELOPMENT", "BLOG")
+    );
     private static final Set<String> ALLOWED_STATUSES = new HashSet<String>(
         Arrays.asList("TODO", "IN_PROGRESS", "DONE", "HOLD")
     );
@@ -68,6 +72,7 @@ public class TaskServiceImpl implements TaskService {
 
         Long taskId = asLong(params.get("task_id"), "task_id");
         Long projectId = asLong(params.get("project_id"), "project_id");
+        Long parentTaskId = asLong(params.get("parent_task_id"), "parent_task_id");
         if (projectId == null) {
             throw ApiException.badRequest("project_id is required");
         }
@@ -76,22 +81,42 @@ public class TaskServiceImpl implements TaskService {
         String taskStatus = normalizeEnum(params.get("task_status"), "TODO", ALLOWED_STATUSES, "invalid task_status");
         String priority = normalizeEnum(params.get("priority"), "MEDIUM", ALLOWED_PRIORITIES, "invalid priority");
         String assigneeUserId = optionalText(params.get("assignee_user_id"));
+        Map<String, Object> project = taskMapper.selectProjectReference(Collections.<String, Object>singletonMap("project_id", projectId));
+        if (project == null || project.isEmpty()) {
+            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
+        }
+        String taskTypeCode = normalizeTaskType(project.get("project_type_code"));
         String startDate = optionalDate(params.get("start_date"), "start_date");
         String dueDate = optionalDate(params.get("due_date"), "due_date");
+        String actualStartDate = optionalDate(params.get("actual_start_date"), "actual_start_date");
+        String actualEndDate = optionalDate(params.get("actual_end_date"), "actual_end_date");
+        String taskUrl = optionalText(params.get("task_url"));
+        java.math.BigDecimal supportAmount = optionalDecimal(params.get("support_amount"), "support_amount");
+        java.math.BigDecimal actualAmount = optionalDecimal(params.get("actual_amount"), "actual_amount");
         String description = optionalText(params.get("description"));
         Integer progressRate = normalizeProgress(params.get("progress_rate"));
 
         validateDateRange(startDate, dueDate);
+        validateDateRange(actualStartDate, actualEndDate);
+        validateTaskFields(taskTypeCode, startDate, dueDate, actualStartDate, actualEndDate, taskUrl, supportAmount, actualAmount);
+        validateParentTask(taskId, projectId, parentTaskId);
 
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         payload.put("task_id", taskId);
         payload.put("project_id", projectId);
+        payload.put("parent_task_id", parentTaskId);
+        payload.put("task_type_code", taskTypeCode);
         payload.put("task_title", taskTitle);
         payload.put("task_status", taskStatus);
         payload.put("priority", priority);
         payload.put("assignee_user_id", assigneeUserId);
         payload.put("start_date", startDate);
         payload.put("due_date", dueDate);
+        payload.put("actual_start_date", actualStartDate);
+        payload.put("actual_end_date", actualEndDate);
+        payload.put("task_url", taskUrl);
+        payload.put("support_amount", supportAmount);
+        payload.put("actual_amount", actualAmount);
         payload.put("progress_rate", progressRate);
         payload.put("description", description);
 
@@ -105,6 +130,151 @@ public class TaskServiceImpl implements TaskService {
         }
 
         return getTaskDetail(Collections.<String, Object>singletonMap("task_id", taskId), viewerUserId, viewerRoles);
+    }
+
+    private void validateTaskFields(
+        String taskTypeCode,
+        String startDate,
+        String dueDate,
+        String actualStartDate,
+        String actualEndDate,
+        String taskUrl,
+        java.math.BigDecimal supportAmount,
+        java.math.BigDecimal actualAmount
+    ) {
+        if ("DEVELOPMENT".equals(taskTypeCode)) {
+            if (actualStartDate != null && startDate != null && LocalDate.parse(actualStartDate).isBefore(LocalDate.parse(startDate))) {
+                throw ApiException.badRequest("actual_start_date must be on or after start_date");
+            }
+            if (actualEndDate != null && actualStartDate != null && LocalDate.parse(actualEndDate).isBefore(LocalDate.parse(actualStartDate))) {
+                throw ApiException.badRequest("actual_end_date must be on or after actual_start_date");
+            }
+            return;
+        }
+
+        if ("BLOG".equals(taskTypeCode)) {
+            if (taskUrl != null && taskUrl.length() > 500) {
+                throw ApiException.badRequest("task_url is too long");
+            }
+            if (supportAmount != null && supportAmount.signum() < 0) {
+                throw ApiException.badRequest("support_amount must be zero or greater");
+            }
+            if (actualAmount != null && actualAmount.signum() < 0) {
+                throw ApiException.badRequest("actual_amount must be zero or greater");
+            }
+            return;
+        }
+    }
+
+    private String normalizeTaskType(Object value) {
+        String taskType = optionalText(value);
+        if (taskType == null) {
+            return "GENERAL";
+        }
+        taskType = taskType.toUpperCase();
+        if (!ALLOWED_TASK_TYPES.contains(taskType)) {
+            throw ApiException.badRequest("invalid task_type_code");
+        }
+        return taskType;
+    }
+
+    private void validateParentTask(Long taskId, Long projectId, Long parentTaskId) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        List<Map<String, Object>> projectTasks = taskMapper.selectProjectTaskReferences(query);
+        Map<Long, Map<String, Object>> taskMap = new LinkedHashMap<Long, Map<String, Object>>();
+        for (Map<String, Object> task : projectTasks) {
+            Long id = asLong(task.get("task_id"), "task_id");
+            if (id != null) {
+                taskMap.put(id, task);
+            }
+        }
+
+        int parentDepth = -1;
+        if (parentTaskId != null) {
+            if (taskId != null && taskId.equals(parentTaskId)) {
+                throw ApiException.badRequest("parent_task_id cannot equal task_id");
+            }
+
+            Map<String, Object> parentTask = taskMap.get(parentTaskId);
+            if (parentTask == null || parentTask.isEmpty()) {
+                throw ApiException.badRequest("parent_task_id is invalid");
+            }
+
+            parentDepth = resolveTaskDepth(parentTaskId, taskMap, taskId);
+        }
+
+        int subtreeHeight = taskId == null ? 0 : resolveSubtreeHeight(taskId, taskMap);
+        if (parentDepth + 1 + subtreeHeight > MAX_TASK_DEPTH) {
+            throw ApiException.badRequest("task depth must be 4 levels or less");
+        }
+    }
+
+    private int resolveTaskDepth(Long taskId, Map<Long, Map<String, Object>> taskMap, Long movingTaskId) {
+        int depth = 0;
+        Long cursor = taskId;
+        Set<Long> visited = new HashSet<Long>();
+
+        while (cursor != null) {
+            if (!visited.add(cursor)) {
+                throw ApiException.badRequest("parent_task_id chain is invalid");
+            }
+            if (movingTaskId != null && movingTaskId.equals(cursor) && depth > 0) {
+                throw ApiException.badRequest("cannot assign descendant as parent_task_id");
+            }
+
+            Map<String, Object> current = taskMap.get(cursor);
+            if (current == null || current.isEmpty()) {
+                throw ApiException.badRequest("parent_task_id chain is invalid");
+            }
+
+            Long parentId = asLong(current.get("parent_task_id"), "parent_task_id");
+            if (parentId == null) {
+                return depth;
+            }
+
+            cursor = parentId;
+            depth++;
+            if (depth > 100) {
+                throw ApiException.badRequest("parent_task_id chain is invalid");
+            }
+        }
+
+        return depth;
+    }
+
+    private int resolveSubtreeHeight(Long rootTaskId, Map<Long, Map<String, Object>> taskMap) {
+        Map<Long, List<Long>> children = new LinkedHashMap<Long, List<Long>>();
+        for (Map<String, Object> task : taskMap.values()) {
+            Long id = asLong(task.get("task_id"), "task_id");
+            Long parentId = asLong(task.get("parent_task_id"), "parent_task_id");
+            if (id == null || parentId == null) {
+                continue;
+            }
+            List<Long> items = children.get(parentId);
+            if (items == null) {
+                items = new java.util.ArrayList<Long>();
+                children.put(parentId, items);
+            }
+            items.add(id);
+        }
+        return subtreeHeight(rootTaskId, children, new HashSet<Long>());
+    }
+
+    private int subtreeHeight(Long taskId, Map<Long, List<Long>> children, Set<Long> visited) {
+        if (taskId == null || !visited.add(taskId)) {
+            return 0;
+        }
+        List<Long> items = children.get(taskId);
+        if (items == null || items.isEmpty()) {
+            return 0;
+        }
+
+        int max = 0;
+        for (Long childId : items) {
+            max = Math.max(max, 1 + subtreeHeight(childId, children, new HashSet<Long>(visited)));
+        }
+        return max;
     }
 
     private boolean isAdmin(List<String> viewerRoles) {
@@ -166,6 +336,18 @@ public class TaskServiceImpl implements TaskService {
             return LocalDate.parse(text).toString();
         } catch (DateTimeParseException exception) {
             throw ApiException.badRequest(fieldName + " must be yyyy-MM-dd");
+        }
+    }
+
+    private java.math.BigDecimal optionalDecimal(Object value, String fieldName) {
+        String text = optionalText(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(text);
+        } catch (NumberFormatException exception) {
+            throw ApiException.badRequest(fieldName + " must be numeric");
         }
     }
 

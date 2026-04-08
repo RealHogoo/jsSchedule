@@ -1,7 +1,7 @@
 package com.realhogoo.jsschedule.auth.web;
 
-import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.realhogoo.jsschedule.auth.jwt.JwtProvider;
+import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -10,18 +10,20 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Component
 public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
 
-    private final JwtProvider jwtProvider;
+    private final AdminServiceClient adminServiceClient;
     private final String adminServiceBaseUrl;
 
     public ScheduleEntryAuthInterceptor(
-        JwtProvider jwtProvider,
+        @Lazy
+        AdminServiceClient adminServiceClient,
         @Value("${admin-service.base-url}") String adminServiceBaseUrl
     ) {
-        this.jwtProvider = jwtProvider;
+        this.adminServiceClient = adminServiceClient;
         this.adminServiceBaseUrl = adminServiceBaseUrl == null ? "" : adminServiceBaseUrl.trim();
     }
 
@@ -35,7 +37,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         String token = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
         if (isValidToken(token)) {
             if ("/".equals(path) || "/index.html".equals(path)) {
-                response.sendRedirect(request.getContextPath() + "/schedule.html");
+                response.sendRedirect(request.getContextPath() + "/project.html");
                 return false;
             }
             return true;
@@ -46,7 +48,11 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean requiresAuthEntry(String path) {
-        return "/".equals(path) || "/index.html".equals(path) || "/schedule.html".equals(path);
+        return "/".equals(path)
+            || "/index.html".equals(path)
+            || "/project.html".equals(path)
+            || "/schedule.html".equals(path)
+            || "/task.html".equals(path);
     }
 
     private boolean isValidToken(String token) {
@@ -54,9 +60,9 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
             return false;
         }
         try {
-            jwtProvider.verify(token.trim());
-            return true;
-        } catch (JWTVerificationException exception) {
+            Map<String, Object> currentUser = adminServiceClient.fetchCurrentUser(token.trim());
+            return currentUser != null && !currentUser.isEmpty();
+        } catch (Exception exception) {
             return false;
         }
     }

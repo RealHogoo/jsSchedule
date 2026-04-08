@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
         String traceId = TraceId.resolve(request);
         log.warn("[API_ERROR] traceId={}, uri={}, message={}", traceId, request.getRequestURI(), exception.getMessage());
         return ResponseEntity.status(exception.getStatus())
-            .body(ApiResponse.fail(ApiErrorSupport.code(exception.getCode()), ApiErrorSupport.message(exception.getCode()), null, traceId));
+            .body(ApiResponse.fail(ApiErrorSupport.code(exception.getCode()), exception.getMessage(), null, traceId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
         String traceId = TraceId.resolve(request);
         log.warn("[VALIDATION_ERROR] traceId={}, uri={}, message={}", traceId, request.getRequestURI(), exception.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ApiResponse.fail(ApiErrorSupport.code(ApiCode.VALIDATION_ERROR), ApiErrorSupport.message(ApiCode.VALIDATION_ERROR), null, traceId));
+            .body(ApiResponse.fail(ApiErrorSupport.code(ApiCode.VALIDATION_ERROR), exception.getMessage(), null, traceId));
     }
 
     @ExceptionHandler(Exception.class)

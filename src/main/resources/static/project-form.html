@@ -22,9 +22,9 @@
 
             <div id="sidebarCollapsible" class="sidebar-collapsible">
                 <nav class="workspace-nav" aria-label="서비스 메뉴">
-                    <a class="nav-link is-active" href="/schedule.html">프로젝트</a>
+                    <a class="nav-link is-active" href="/project.html">프로젝트</a>
                     <a class="nav-link is-disabled" href="#" aria-disabled="true">대시보드</a>
-                    <a class="nav-link" href="/task.html">일정</a>
+                    <a class="nav-link" href="/schedule.html">일정</a>
                     <a class="nav-link is-disabled" href="#" aria-disabled="true">캘린더</a>
                 </nav>
 
@@ -89,6 +89,15 @@
                     </div>
 
                         <div class="detail-form-grid">
+                            <div class="form-item">
+                                <label for="projectTypeCode">프로젝트 유형</label>
+                                <select id="projectTypeCode" class="input">
+                                <option value="GENERAL">GENERAL</option>
+                                <option value="DEVELOPMENT">DEVELOPMENT</option>
+                                <option value="BLOG">BLOG</option>
+                            </select>
+                        </div>
+
                             <div class="form-item">
                                 <label for="projectStatus">상태</label>
                                 <select id="projectStatus" class="input">

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>schedule-service projects</title>
+    <link rel="stylesheet" href="/css/common.css">
+</head>
+<body class="schedule-page">
+    <main class="workspace-shell">
+        <aside class="workspace-sidebar panel" id="workspaceSidebar">
+            <div class="brand-block">
+                <div class="brand-topline">
+                    <div>
+                        <div class="login-eyebrow">SCHEDULE SERVICE</div>
+                        <h1 class="workspace-title">Project Workspace</h1>
+                    </div>
+                    <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
+                </div>
+                <p class="workspace-desc">프로젝트 운영 현황을 빠르게 확인하고 목록 중심으로 관리합니다.</p>
+            </div>
+
+            <div id="sidebarCollapsible" class="sidebar-collapsible">
+                <nav class="workspace-nav" aria-label="서비스 메뉴">
+                    <a class="nav-link is-active" href="/project.html">프로젝트</a>
+                    <a class="nav-link is-disabled" href="#" aria-disabled="true">대시보드</a>
+                    <a class="nav-link" href="/schedule.html">일정</a>
+                    <a class="nav-link is-disabled" href="#" aria-disabled="true">캘린더</a>
+                </nav>
+
+                <div class="sidebar-body">
+                    <section class="sidebar-section">
+                        <div class="section-label">현재 사용자</div>
+                        <dl id="currentUser" class="compact-info-list"></dl>
+                    </section>
+
+                    <section class="sidebar-section">
+                        <div class="section-label">요약</div>
+                        <div id="summaryCards" class="summary-cards"></div>
+                    </section>
+                </div>
+
+                <div class="sidebar-footer">
+                    <div class="sidebar-note">
+                        <strong>Workspace note</strong>
+                        <p>데스크톱에서는 목록과 상세를 함께 보고, 모바일에서는 필요한 순간에만 메뉴를 펼쳐서 확인합니다.</p>
+                    </div>
+
+                    <div class="btns sidebar-actions">
+                        <button type="button" id="btnReload" class="btn">새로고침</button>
+                        <button type="button" id="btnLogout" class="btn btn-danger">로그아웃</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="workspace-main">
+            <header class="workspace-hero panel">
+                <div>
+                    <div class="hero-kicker">PROJECT LIST</div>
+                    <h2 class="workspace-heading">목록 중심 프로젝트 운영 화면</h2>
+                    <p class="workspace-copy">상태, 담당 PM, 키워드 기준으로 프로젝트를 바로 좁혀 보고 주요 일정과 작업 규모를 한 화면에서 확인합니다.</p>
+                </div>
+            </header>
+
+            <section class="project-layout is-single">
+                <div class="project-primary">
+                    <section class="panel project-filter-panel">
+                        <div class="panel-title">프로젝트 필터</div>
+                        <div class="project-filters">
+                            <div class="form-item">
+                                <label for="filterKeyword">키워드</label>
+                                <input id="filterKeyword" class="input" type="text" placeholder="프로젝트명 또는 키">
+                            </div>
+                            <div class="form-item">
+                                <label for="filterStatus">상태</label>
+                                <select id="filterStatus" class="input">
+                                    <option value="">전체</option>
+                                    <option value="READY">READY</option>
+                                    <option value="IN_PROGRESS">IN_PROGRESS</option>
+                                    <option value="DONE">DONE</option>
+                                    <option value="HOLD">HOLD</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label for="filterOwner">PM</label>
+                                <input id="filterOwner" class="input" type="text" placeholder="owner_user_id">
+                            </div>
+                            <div class="btns filter-actions">
+                                <button type="button" id="btnSearch" class="btn btn-primary">조회</button>
+                                <button type="button" id="btnReset" class="btn">초기화</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel project-table-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title">프로젝트 목록</div>
+                                <p class="table-copy">기본 화면은 카드보다 테이블 중심으로 구성합니다.</p>
+                            </div>
+                            <div class="btns">
+                                <button type="button" id="btnNewProject" class="btn btn-primary">신규 프로젝트</button>
+                            </div>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>프로젝트</th>
+                                        <th>상태</th>
+                                        <th>기간</th>
+                                        <th>PM</th>
+                                        <th>태스크</th>
+                                        <th>마일스톤</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="projectRows">
+                                    <tr>
+                                        <td colspan="6" class="empty-row">데이터를 불러오는 중입니다.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="/js/ux.js"></script>
+    <script src="/js/project.js"></script>
+</body>
+</html>

@@ -20,6 +20,9 @@ import java.util.Set;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
+    private static final Set<String> ALLOWED_PROJECT_TYPES = new HashSet<String>(
+        Arrays.asList("GENERAL", "DEVELOPMENT", "BLOG")
+    );
     private static final Set<String> ALLOWED_STATUSES = new HashSet<String>(
         Arrays.asList("PLANNING", "READY", "IN_PROGRESS", "DONE", "HOLD")
     );
@@ -63,6 +66,7 @@ public class ProjectServiceImpl implements ProjectService {
         String projectKey = requiredText(params.get("project_key"), "project_key is required");
         String projectName = requiredText(params.get("project_name"), "project_name is required");
         String ownerUserId = requiredText(params.get("owner_user_id"), "owner_user_id is required");
+        String projectTypeCode = normalizeProjectType(params.get("project_type_code"));
         String projectStatus = normalizeStatus(params.get("project_status"));
         String description = optionalText(params.get("description"));
         String startDate = optionalDate(params.get("start_date"), "start_date");
@@ -74,6 +78,7 @@ public class ProjectServiceImpl implements ProjectService {
         payload.put("project_id", projectId);
         payload.put("project_key", projectKey);
         payload.put("project_name", projectName);
+        payload.put("project_type_code", projectTypeCode);
         payload.put("project_status", projectStatus);
         payload.put("owner_user_id", ownerUserId);
         payload.put("start_date", startDate);
@@ -146,6 +151,18 @@ public class ProjectServiceImpl implements ProjectService {
             throw ApiException.badRequest("invalid project_status");
         }
         return status;
+    }
+
+    private String normalizeProjectType(Object value) {
+        String projectType = optionalText(value);
+        if (projectType == null) {
+            return "GENERAL";
+        }
+        projectType = projectType.toUpperCase();
+        if (!ALLOWED_PROJECT_TYPES.contains(projectType)) {
+            throw ApiException.badRequest("invalid project_type_code");
+        }
+        return projectType;
     }
 
     private String optionalDate(Object value, String fieldName) {

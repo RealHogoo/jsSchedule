@@ -1,11 +1,10 @@
 package com.realhogoo.jsschedule.auth.jwt;
 
-import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiResponse;
 import com.realhogoo.jsschedule.auth.web.AuthCookieSupport;
+import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 import org.springframework.web.servlet.FrameworkServlet;
@@ -24,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class JwtAuthFilter implements Filter {
@@ -36,13 +36,13 @@ public class JwtAuthFilter implements Filter {
     ));
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private JwtProvider jwtProvider;
+    private AdminServiceClient adminServiceClient;
     private ServletContext servletContext;
 
     @Override
     public void init(FilterConfig filterConfig) {
         this.servletContext = filterConfig.getServletContext();
-        this.jwtProvider = resolveJwtProvider();
+        this.adminServiceClient = resolveAdminServiceClient();
     }
 
     @Override
@@ -69,21 +69,26 @@ public class JwtAuthFilter implements Filter {
         }
 
         try {
-            JwtProvider provider = jwtProvider != null ? jwtProvider : resolveJwtProvider();
-            if (provider == null) {
-                writeJson(httpResponse, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "jwt provider unavailable", httpRequest));
+            AdminServiceClient client = adminServiceClient != null ? adminServiceClient : resolveAdminServiceClient();
+            if (client == null) {
+                writeJson(httpResponse, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "admin auth client unavailable", httpRequest));
                 return;
             }
 
-            DecodedJWT jwt = provider.verify(token);
-            httpRequest.setAttribute("user_id", jwt.getSubject());
-            httpRequest.setAttribute("session_id", jwt.getClaim("session_id").asString());
-            List<String> roles = jwt.getClaim("roles").asList(String.class);
+            Map<String, Object> currentUser = client.fetchCurrentUser(token);
+            if (currentUser == null || currentUser.isEmpty()) {
+                writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "invalid token", httpRequest));
+                return;
+            }
+
+            httpRequest.setAttribute("user_id", stringValue(currentUser.get("user_id")));
+            httpRequest.setAttribute("session_id", stringValue(currentUser.get("session_id")));
+            List<String> roles = rolesValue(currentUser.get("roles"));
             httpRequest.setAttribute("roles", roles == null ? Collections.emptyList() : roles);
             httpRequest.setAttribute("access_token", token);
 
             chain.doFilter(request, response);
-        } catch (JWTVerificationException exception) {
+        } catch (Exception exception) {
             writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "invalid token", httpRequest));
         }
     }
@@ -92,13 +97,13 @@ public class JwtAuthFilter implements Filter {
     public void destroy() {
     }
 
-    private JwtProvider resolveJwtProvider() {
+    private AdminServiceClient resolveAdminServiceClient() {
         WebApplicationContext context = resolveContext();
         if (context == null) {
             return null;
         }
         try {
-            return context.getBean(JwtProvider.class);
+            return context.getBean(AdminServiceClient.class);
         } catch (Exception ignored) {
             return null;
         }
@@ -142,5 +147,17 @@ public class JwtAuthFilter implements Filter {
 
         String cookieToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
         return cookieToken == null ? "" : cookieToken;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> rolesValue(Object value) {
+        if (value instanceof List) {
+            return (List<String>) value;
+        }
+        return Collections.emptyList();
     }
 }

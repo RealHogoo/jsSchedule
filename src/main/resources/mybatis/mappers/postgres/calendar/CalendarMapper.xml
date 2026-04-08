@@ -13,22 +13,8 @@
             p.project_name
         FROM schedule_task t
         INNER JOIN schedule_project p ON p.project_id = t.project_id
-        WHERE to_char(COALESCE(t.due_date, t.start_date), 'YYYY-MM') = #{target_month}
-
-        UNION ALL
-
-        SELECT
-            'MILESTONE' AS event_type,
-            CAST(m.milestone_id AS VARCHAR) AS event_id,
-            m.milestone_name AS title,
-            m.due_date AS start_date,
-            m.due_date AS end_date,
-            m.milestone_status AS status,
-            p.project_name
-        FROM schedule_milestone m
-        INNER JOIN schedule_project p ON p.project_id = m.project_id
-        WHERE to_char(m.due_date, 'YYYY-MM') = #{target_month}
-
+        WHERE t.assignee_user_id = #{viewer_user_id}
+          AND to_char(COALESCE(t.due_date, t.start_date), 'YYYY-MM') = #{target_month}
         ORDER BY start_date, event_type, event_id
     </select>
 </mapper>

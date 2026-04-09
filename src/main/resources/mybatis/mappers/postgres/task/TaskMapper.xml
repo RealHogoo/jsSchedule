@@ -22,6 +22,7 @@
             t.support_amount,
             t.actual_amount,
             t.progress_rate,
+            t.description,
             parent.task_title AS parent_task_title,
             m.milestone_name
         FROM schedule_task t

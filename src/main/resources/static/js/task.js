@@ -97,15 +97,17 @@
                 + "<td><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></td>"
                 + "<td><span class=\"status-chip priority-" + esc(String(task.priority || "").toLowerCase()) + "\">" + esc(task.priority || "-") + "</span></td>"
                 + "<td>" + esc(formatPeriod(task.start_date, task.due_date)) + "</td>"
-                + "<td><button type=\"button\" class=\"btn open-project-task\" data-project-id=\"" + esc(task.project_id || "") + "\">프로젝트 관리</button></td>"
+                + "<td><button type=\"button\" class=\"btn open-task-manage\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">태스크 관리</button></td>"
                 + "</tr>";
         }).join("");
 
-        UX.qsa(".open-project-task", target).forEach(function (button) {
+        UX.qsa(".open-task-manage", target).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
                 var projectId = button.getAttribute("data-project-id");
+                var taskId = button.getAttribute("data-task-id");
                 if (!projectId) return;
-                global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId);
+                global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId)
+                    + (taskId ? "&task_id=" + encodeURIComponent(taskId) : "");
             });
         });
     }
@@ -154,8 +156,7 @@
             bindInfo("currentUser", [
                 { label: "아이디", value: state.currentUser.user_id || "-" },
                 { label: "이름", value: state.currentUser.user_nm || "-" },
-                { label: "권한", value: (state.currentUser.roles || []).join(", ") || "-" },
-                { label: "세션", value: state.currentUser.session_id || "-" }
+                { label: "권한", value: (state.currentUser.roles || []).join(", ") || "-" }
             ]);
 
             renderSummary((dashboard.data && dashboard.data.summary) || {});

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>schedule-service project settings</title>
+    <title>프로젝트 설정</title>
     <link rel="stylesheet" href="/css/common.css">
 </head>
 <body class="schedule-page">
@@ -12,8 +12,8 @@
             <div class="brand-block">
                 <div class="brand-topline">
                     <div>
-                        <div class="login-eyebrow">SCHEDULE SERVICE</div>
-                        <h1 class="workspace-title">Project Settings</h1>
+                        <div class="login-eyebrow">일정 서비스</div>
+                        <h1 class="workspace-title">프로젝트 설정</h1>
                     </div>
                     <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
                 </div>
@@ -23,9 +23,9 @@
             <div id="sidebarCollapsible" class="sidebar-collapsible">
                 <nav class="workspace-nav" aria-label="서비스 메뉴">
                     <a class="nav-link is-active" href="/project.html">프로젝트</a>
-                    <a class="nav-link is-disabled" href="#" aria-disabled="true">대시보드</a>
+                    <a class="nav-link" href="/dashboard.html">대시보드</a>
                     <a class="nav-link" href="/schedule.html">일정</a>
-                    <a class="nav-link is-disabled" href="#" aria-disabled="true">캘린더</a>
+                    <a class="nav-link" href="/calendar.html">캘린더</a>
                 </nav>
 
                 <div class="sidebar-body">
@@ -42,12 +42,12 @@
 
                 <div class="sidebar-footer">
                     <div class="sidebar-note">
-                        <strong>Project settings</strong>
+                        <strong>프로젝트 설정</strong>
                         <p>모바일과 데스크톱 모두 같은 입력 흐름으로 프로젝트를 생성하고 수정합니다.</p>
                     </div>
 
                     <div class="btns sidebar-actions">
-                        <button type="button" id="btnBackToList" class="btn">목록으로</button>
+                        <button type="button" id="btnBackToList" class="btn">목록</button>
                         <button type="button" id="btnLogout" class="btn btn-danger">로그아웃</button>
                     </div>
                 </div>
@@ -57,13 +57,13 @@
         <section class="workspace-main">
             <header class="workspace-hero panel">
                 <div>
-                    <div class="hero-kicker">PROJECT SETTINGS</div>
+                    <div class="hero-kicker">프로젝트 설정</div>
                     <h2 id="formPageTitle" class="workspace-heading">신규 프로젝트 등록</h2>
                     <p class="workspace-copy">프로젝트 키, 상태, 기간, PM 정보를 관리하고 운영용 기본 설명을 기록합니다.</p>
                 </div>
                 <div class="hero-stat">
                     <span class="hero-stat-label">편집 대상</span>
-                    <strong id="formModeLabel">NEW</strong>
+                    <strong id="formModeLabel">신규</strong>
                 </div>
             </header>
 

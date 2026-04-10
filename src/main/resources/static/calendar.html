@@ -3,29 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>일정</title>
-    <link rel="stylesheet" href="/css/common.css">
+    <title>캘린더</title>
+    <link rel="stylesheet" href="/css/common.css?v=20260411-3">
 </head>
-<body class="schedule-page">
+<body class="schedule-page calendar-page">
     <main class="workspace-shell">
         <aside class="workspace-sidebar panel" id="workspaceSidebar">
             <div class="brand-block">
                 <div class="brand-topline">
                     <div>
                         <div class="login-eyebrow">일정 서비스</div>
-                        <h1 class="workspace-title">일정</h1>
+                        <h1 class="workspace-title">캘린더</h1>
                     </div>
                     <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
                 </div>
-                <p class="workspace-desc">내가 맡은 태스크만 모아서 보는 개인 일정 화면입니다.</p>
+                <p class="workspace-desc">내가 담당하는 태스크를 월간 캘린더로 확인합니다.</p>
             </div>
 
             <div id="sidebarCollapsible" class="sidebar-collapsible">
                 <nav class="workspace-nav" aria-label="서비스 메뉴">
                     <a class="nav-link" href="/project.html">프로젝트</a>
                     <a class="nav-link" href="/dashboard.html">대시보드</a>
-                    <a class="nav-link is-active" href="/schedule.html">일정</a>
-                    <a class="nav-link" href="/calendar.html">캘린더</a>
+                    <a class="nav-link" href="/schedule.html">일정</a>
+                    <a class="nav-link is-active" href="/calendar.html">캘린더</a>
                 </nav>
 
                 <div class="sidebar-body">
@@ -50,17 +50,20 @@
         </aside>
 
         <section class="workspace-main">
-            <header class="workspace-hero panel">
+            <header class="workspace-hero panel calendar-hero">
                 <div>
-                    <div class="hero-kicker">일정</div>
-                    <h2 class="workspace-heading">내 태스크 일정 관리</h2>
-                    <p class="workspace-copy">로그인한 사용자의 담당 태스크만 보여주고, 프로젝트 관리 화면으로 바로 이동할 수 있습니다.</p>
+                <div class="hero-kicker">캘린더</div>
+                    <h2 class="workspace-heading">내 태스크 캘린더</h2>
+                    <p class="workspace-copy">로그인 사용자에게 배정된 태스크를 날짜 기준으로 모아봅니다.</p>
+                </div>
+                <div class="calendar-hero-actions">
+                    <button type="button" id="btnToday" class="btn btn-primary">오늘</button>
                 </div>
             </header>
 
             <section class="panel project-filter-panel">
                 <div class="panel-title">조회 조건</div>
-                <div class="project-filters">
+                <div class="project-filters schedule-filters">
                     <div class="form-item">
                         <label for="filterKeyword">키워드</label>
                         <input id="filterKeyword" class="input" type="text" placeholder="태스크명 또는 프로젝트명">
@@ -82,40 +85,34 @@
                 </div>
             </section>
 
-            <section class="panel project-table-panel">
-                <div class="table-head">
-                    <div>
-                        <div class="panel-title">내 태스크 목록</div>
-                        <p class="table-copy">담당자로 지정된 태스크만 표시합니다.</p>
+            <section class="schedule-calendar-layout">
+                <section class="panel calendar-panel">
+                    <div class="calendar-toolbar">
+                        <button type="button" id="btnPrevMonth" class="btn">이전</button>
+                        <h3 id="calendarTitle" class="calendar-title">-</h3>
+                        <button type="button" id="btnNextMonth" class="btn">다음</button>
                     </div>
-                </div>
 
-                <div id="taskActionMsg" class="form-msg" aria-live="polite"></div>
+                    <div id="taskActionMsg" class="form-msg" aria-live="polite"></div>
+                    <div id="calendarGrid" class="calendar-grid" aria-label="월간 태스크 캘린더"></div>
+                </section>
 
-                <div class="table-wrap">
-                    <table class="data-table task-table">
-                        <thead>
-                            <tr>
-                                <th>프로젝트</th>
-                                <th>태스크</th>
-                                <th>상태</th>
-                                <th>우선순위</th>
-                                <th>기간</th>
-                                <th>관리</th>
-                            </tr>
-                        </thead>
-                        <tbody id="taskRows">
-                            <tr>
-                                <td colspan="6" class="empty-row">내 태스크를 불러오는 중입니다.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <aside class="panel day-task-panel">
+                    <div class="table-head">
+                        <div>
+                            <div class="panel-title">선택일 태스크</div>
+                            <p id="selectedDateTitle" class="table-copy">날짜를 선택하세요.</p>
+                        </div>
+                    </div>
+                    <div id="selectedDateTasks" class="day-task-list">
+                        <div class="detail-empty">캘린더에서 날짜를 선택하면 태스크가 표시됩니다.</div>
+                    </div>
+                </aside>
             </section>
         </section>
     </main>
 
-    <script src="/js/ux.js"></script>
-    <script src="/js/task.js"></script>
+    <script src="/js/ux.js?v=20260411-2"></script>
+    <script src="/js/calendar.js?v=20260411-3"></script>
 </body>
 </html>

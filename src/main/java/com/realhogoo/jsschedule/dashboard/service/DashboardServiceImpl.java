@@ -37,4 +37,22 @@ public class DashboardServiceImpl implements DashboardService {
             throw exception;
         }
     }
+
+    @Override
+    public Map<String, Object> getDetail(Map<String, Object> params, String accessToken) {
+        log.info("JOB_START dashboard.detail");
+        try {
+            Map<String, Object> safeParams = params == null ? Collections.<String, Object>emptyMap() : params;
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("summary", dashboardMapper.selectSummary(safeParams));
+            response.put("project_stats", dashboardMapper.selectProjectStats(safeParams));
+            response.put("monthly_stats", dashboardMapper.selectMonthlyStats(safeParams));
+            response.put("current_user", adminServiceClient.fetchCurrentUser(accessToken));
+            log.info("JOB_END dashboard.detail");
+            return response;
+        } catch (RuntimeException exception) {
+            log.error("JOB_FAIL dashboard.detail", exception);
+            throw exception;
+        }
+    }
 }

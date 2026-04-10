@@ -103,7 +103,7 @@
         UX.byId("projectEndDate").value = project && project.end_date ? String(project.end_date).slice(0, 10) : "";
         UX.byId("projectDescription").value = project && project.description ? String(project.description) : "";
         UX.setText("formPageTitle", isEdit ? "프로젝트 설정" : "신규 프로젝트 등록");
-        UX.setText("formModeLabel", isEdit ? "EDIT" : "NEW");
+    UX.setText("formModeLabel", isEdit ? "수정" : "신규");
 
         UX.byId("projectMeta").innerHTML = isEdit ? [
             "<span>프로젝트 ID " + UX.esc(String(project.project_id || "-")) + "</span>",

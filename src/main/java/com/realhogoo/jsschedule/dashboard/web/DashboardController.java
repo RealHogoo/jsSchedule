@@ -23,4 +23,10 @@ public class DashboardController {
         String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
         return ApiResponse.ok(dashboardService.getSummary(body, accessToken), request);
     }
+
+    @PostMapping("/dashboard/detail.json")
+    public ApiResponse<Object> detail(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
+        return ApiResponse.ok(dashboardService.getDetail(body, accessToken), request);
+    }
 }

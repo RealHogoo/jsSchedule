@@ -6,6 +6,7 @@
         sidebarOpen: false,
         currentUser: {},
         projectId: "",
+        initialTaskId: "",
         project: null,
         tasks: [],
         selectedTaskId: "",
@@ -375,8 +376,11 @@
         byId("taskStatus").value = task && task.task_status ? String(task.task_status) : "TODO";
         byId("taskPriority").value = task && task.priority ? String(task.priority) : "MEDIUM";
         renderParentTaskOptions(task && task.task_id ? String(task.task_id) : "", task && task.parent_task_id ? String(task.parent_task_id) : "");
-        byId("taskAssigneeUserId").value = task && task.assignee_user_id ? String(task.assignee_user_id) : "";
-        byId("taskAssigneeDisplay").value = userLabel(task && task.assignee_user_nm ? String(task.assignee_user_nm) : "", task && task.assignee_user_id ? String(task.assignee_user_id) : "");
+        byId("taskAssigneeUserId").value = task && task.assignee_user_id ? String(task.assignee_user_id) : (state.currentUser.user_id || "");
+        byId("taskAssigneeDisplay").value = userLabel(
+            task && task.assignee_user_nm ? String(task.assignee_user_nm) : (state.currentUser.user_nm || ""),
+            task && task.assignee_user_id ? String(task.assignee_user_id) : (state.currentUser.user_id || "")
+        );
         byId("taskStartDate").value = task && task.start_date ? String(task.start_date).slice(0, 10) : "";
         byId("taskDueDate").value = task && task.due_date ? String(task.due_date).slice(0, 10) : "";
         byId("taskProgressRate").value = task && task.progress_rate != null ? String(Math.round(Number(task.progress_rate || 0))) : "0";
@@ -580,6 +584,10 @@
             state.tasks = Array.isArray(response.data) ? response.data : [];
             renderTaskTable();
             renderParentTaskOptions(state.selectedTaskId, byId("taskParentTaskId") ? byId("taskParentTaskId").value : "");
+            if (state.initialTaskId) {
+                openTaskEditor(state.initialTaskId);
+                state.initialTaskId = "";
+            }
         }).catch(function () {
             state.tasks = [];
             byId("taskRows").innerHTML = "<div class=\"detail-empty\">태스크를 불러오지 못했습니다.</div>";
@@ -705,6 +713,7 @@
     }
 
     state.projectId = queryParam("project_id") || "";
+    state.initialTaskId = queryParam("task_id") || "";
 
     bindEvents();
     syncSidebarMode();

@@ -1,588 +1,575 @@
+﻿
 (function (global) {
     "use strict";
 
     var UX = global.UX;
     var state = {
         sidebarOpen: false,
-        activeTab: "project",
-        viewMode: "chart",
-        projectStats: [],
-        monthlyStats: []
+        currentUser: {},
+        summary: {},
+        projects: [],
+        selectedProjectId: "",
+        selectedProject: null,
+        projectDetail: null,
+        tasks: [],
+        monthlyChart: null
     };
 
     function byId(id) { return UX.byId(id); }
     function esc(value) { return UX.esc(value == null ? "" : String(value)); }
     function redirectToLogin() { global.location.href = "/"; }
-
+    function number(value) { var n = Number(value || 0); return isNaN(n) ? 0 : n; }
+    function formatCount(value) { return String(Math.round(number(value))).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+    function formatPercent(value) { return formatCount(value) + "%"; }
+    function formatMoney(value) { return formatCount(value) + "\uC6D0"; }
+    function formatDate(value) { return value ? String(value).slice(0, 10) : "-"; }
+    function formatPeriod(start, end) { return formatDate(start) + " ~ " + formatDate(end); }
+    function parseDate(value) { return value ? new Date(String(value).slice(0, 10) + "T00:00:00") : null; }
+    function today() { var now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
+    function pad(value) { return String(value).padStart(2, "0"); }
+    function monthKey(date) { return date.getFullYear() + "-" + pad(date.getMonth() + 1); }
+    function moveToTask(projectId, taskId) {
+        if (!projectId) return;
+        global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId)
+            + (taskId ? "&task_id=" + encodeURIComponent(taskId) : "");
+    }
     function typeLabel(type) {
-        if (type === "DEVELOPMENT") return "개발";
-        if (type === "BLOG") return "블로그";
-        return "일반";
+        if (type === "DEVELOPMENT") return "\uAC1C\uBC1C";
+        if (type === "BLOG") return "\uBE14\uB85C\uADF8";
+        return "\uC77C\uBC18";
     }
-
-    function typeColor(type) {
-        if (type === "DEVELOPMENT") return "#2563eb";
-        if (type === "BLOG") return "#ea580c";
-        return "#0f766e";
-    }
-
-    function number(value) {
-        var n = Number(value || 0);
-        return isNaN(n) ? 0 : n;
-    }
-
-    function formatCount(value) {
-        return String(Math.round(number(value))).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    function formatMoney(value) {
-        return formatCount(value) + "원";
-    }
-
-    function formatPercent(value) {
-        return formatCount(value) + "%";
-    }
-
-    function formatDate(value) {
-        return value ? String(value).slice(0, 10) : "-";
-    }
-
-    function formatPeriod(start, end) {
-        return formatDate(start) + " ~ " + formatDate(end);
-    }
-
-    function dayDiff(start, end) {
-        var startDate;
-        var endDate;
-        var diffMs;
-        if (!start || !end) return null;
-        startDate = new Date(String(start).slice(0, 10) + "T00:00:00");
-        endDate = new Date(String(end).slice(0, 10) + "T00:00:00");
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
-        diffMs = endDate.getTime() - startDate.getTime();
-        return Math.round(diffMs / 86400000);
-    }
-
-    function formatDays(value) {
-        if (value == null) return "-";
-        if (value > 0) return "+" + formatCount(value) + "일";
-        if (value < 0) return formatCount(value) + "일";
-        return "0일";
-    }
-
-    function projectPeriodText(row) {
-        var type = String(row.project_type_code || "GENERAL");
-        if (type === "DEVELOPMENT") {
-            return "목표 " + formatPeriod(row.target_start_date, row.target_end_date) + "<br>실제 " + formatPeriod(row.actual_start_date, row.actual_end_date);
-        }
-        return "기간 " + formatPeriod(row.project_start_date, row.project_end_date);
-    }
-
-    function projectMetricBundle(row) {
-        var type = String(row.project_type_code || "GENERAL");
-        var overdueCount;
-        var overdueRatio;
-
+    function insightConfig(type) {
         if (type === "BLOG") {
             return {
-                main: { label: "지원금 총액", text: formatMoney(row.support_total), value: Math.max(0, number(row.support_total)) },
-                sub: { label: "사용금액 총액", text: formatMoney(row.actual_total), value: Math.max(0, number(row.actual_total)) }
-            };
-        }
-
-        if (type === "DEVELOPMENT") {
-            overdueCount = Math.max(0, number(row.overdue_count));
-            overdueRatio = number(row.task_count) > 0 ? Math.round((overdueCount / number(row.task_count)) * 100) : 0;
-            return {
-                main: { label: "지연 태스크 비율", text: formatPercent(overdueRatio), value: overdueRatio },
-                sub: { label: "지연 태스크 건수", text: formatCount(overdueCount) + "건", value: overdueCount }
-            };
-        }
-
-        return {
-            main: { label: "태스크 건수", text: formatCount(row.task_count) + "건", value: Math.max(0, number(row.task_count)) },
-            sub: { label: "진행률", text: formatPercent(row.progress_avg), value: Math.max(0, number(row.progress_avg)) }
-        };
-    }
-
-    function monthlyMetricValue(row) {
-        return monthlyMetricBundle(row).main.value;
-    }
-
-    function monthlyMainText(row) {
-        return monthlyMetricBundle(row).main.text;
-    }
-
-    function monthlySubText(row) {
-        return monthlyMetricBundle(row).sub.text;
-    }
-
-    function monthlyMetricBundle(row) {
-        var type = String(row.project_type_code || "GENERAL");
-        var overdueCount;
-        var overdueRatio;
-        if (type === "BLOG") {
-            return {
-                main: { label: "월 지원금 총액", text: formatMoney(row.support_total), value: Math.max(0, number(row.support_total)) },
-                sub: { label: "월 사용금액 총액", text: formatMoney(row.actual_total), value: Math.max(0, number(row.actual_total)) }
+                guide: "\uBE14\uB85C\uADF8\uB294 \uC5C5\uCCB4 \uBD80\uB2F4\uAE08\uACFC \uCD94\uAC00 \uACB0\uC81C\uAE08\uC744 \uC911\uC2EC\uC73C\uB85C \uBCF4\uACE0, \uC6D4\uBCC4 \uD750\uB984\uC740 \uB9C8\uAC10\uC77C \uAE30\uC900\uC73C\uB85C \uC9D1\uACC4\uD569\uB2C8\uB2E4.",
+                statusTitle: "\uAE08\uC561 \uD604\uD669",
+                statusCopy: "\uC5C5\uCCB4 \uBD80\uB2F4\uAE08\uACFC \uCD94\uAC00 \uACB0\uC81C\uAE08 \uD569\uACC4\uB97C \uBE44\uAD50\uD569\uB2C8\uB2E4.",
+                monthlyTitle: "\uC6D4\uBCC4 \uD0DC\uC2A4\uD06C \uD750\uB984",
+                monthlyCopy: "\uCD5C\uADFC 12\uAC1C\uC6D4 \uD0DC\uC2A4\uD06C \uD750\uB984\uC744 \uBCF4\uC5EC\uC90D\uB2C8\uB2E4."
             };
         }
         if (type === "DEVELOPMENT") {
-            overdueCount = Math.max(0, number(row.overdue_count));
-            overdueRatio = number(row.task_count) > 0 ? Math.round((overdueCount / number(row.task_count)) * 100) : 0;
             return {
-                main: { label: "월 지연 태스크 비율", text: formatPercent(overdueRatio), value: overdueRatio },
-                sub: { label: "월 지연 태스크 건수", text: formatCount(overdueCount) + "건", value: overdueCount }
+                guide: "\uAC1C\uBC1C\uC740 \uC9C0\uC5F0 \uD0DC\uC2A4\uD06C \uBE44\uC728\uACFC \uAC74\uC218, \uC6D4\uBCC4 \uD750\uB984\uC740 \uC2E4\uC81C \uC885\uB8CC\uC77C \uC6B0\uC120 \uAE30\uC900\uC73C\uB85C \uBCF4\uC5EC\uC90D\uB2C8\uB2E4.",
+                statusTitle: "\uC0C1\uD0DC \uBD84\uD3EC",
+                statusCopy: "\uD604\uC7AC \uAC1C\uBC1C \uD0DC\uC2A4\uD06C \uC0C1\uD0DC \uAD6C\uC131\uC744 \uD655\uC778\uD569\uB2C8\uB2E4.",
+                monthlyTitle: "\uC6D4\uBCC4 \uD0DC\uC2A4\uD06C \uD750\uB984",
+                monthlyCopy: "\uCD5C\uADFC 12\uAC1C\uC6D4 \uD0DC\uC2A4\uD06C \uD750\uB984\uC744 \uBCF4\uC5EC\uC90D\uB2C8\uB2E4."
             };
         }
         return {
-            main: { label: "월 태스크 건수", text: formatCount(row.task_count) + "건", value: Math.max(0, number(row.task_count)) },
-            sub: { label: "월 평균 진행률", text: formatPercent(row.progress_avg), value: Math.max(0, number(row.progress_avg)) }
+            guide: "\uC77C\uBC18\uC740 \uD0DC\uC2A4\uD06C \uAC74\uC218\uC640 \uD3C9\uADE0 \uC9C4\uD589\uB960\uC744 \uC911\uC2EC\uC73C\uB85C \uBCF4\uACE0, \uC6D4\uBCC4 \uD750\uB984\uC740 \uB9C8\uAC10\uC77C \uAE30\uC900\uC73C\uB85C \uC9D1\uACC4\uD569\uB2C8\uB2E4.",
+            statusTitle: "\uC0C1\uD0DC \uBD84\uD3EC",
+            statusCopy: "\uD604\uC7AC \uD0DC\uC2A4\uD06C \uC0C1\uD0DC \uAD6C\uC131\uC744 \uD655\uC778\uD569\uB2C8\uB2E4.",
+            monthlyTitle: "\uC6D4\uBCC4 \uD0DC\uC2A4\uD06C \uD750\uB984",
+            monthlyCopy: "\uCD5C\uADFC 12\uAC1C\uC6D4 \uD0DC\uC2A4\uD06C \uD750\uB984\uC744 \uBCF4\uC5EC\uC90D\uB2C8\uB2E4."
         };
     }
-
+    function taskStats(tasks) {
+        var stats = { total: tasks.length, done: 0, inProgress: 0, todo: 0, hold: 0, overdue: 0, avgProgress: 0, supportTotal: 0, actualTotal: 0 };
+        tasks.forEach(function (task) {
+            var status = String(task.task_status || "");
+            if (status === "DONE") stats.done += 1;
+            else if (status === "IN_PROGRESS") stats.inProgress += 1;
+            else if (status === "HOLD") stats.hold += 1;
+            else stats.todo += 1;
+            if (task.due_date && status !== "DONE" && parseDate(task.due_date) < today()) stats.overdue += 1;
+            stats.avgProgress += number(task.progress_rate);
+            stats.supportTotal += number(task.support_amount);
+            stats.actualTotal += number(task.actual_amount);
+        });
+        stats.avgProgress = tasks.length ? Math.round(stats.avgProgress / tasks.length) : 0;
+        return stats;
+    }
     function bindInfo(targetId, rows) {
         var target = byId(targetId);
         if (!target) return;
-        target.innerHTML = rows.map(function (row) {
-            return "<dt>" + esc(row.label) + "</dt><dd>" + esc(row.value) + "</dd>";
-        }).join("");
+        target.innerHTML = rows.map(function (row) { return "<dt>" + esc(row.label) + "</dt><dd>" + esc(row.value) + "</dd>"; }).join("");
     }
-
-    function setActiveTab(tabName) {
-        var isProject = tabName !== "monthly";
-        var projectTab = byId("tabProjectStats");
-        var monthlyTab = byId("tabMonthlyStats");
-        var projectView = byId("dashboardProjectView");
-        var monthlyView = byId("dashboardMonthlyView");
-
-        state.activeTab = isProject ? "project" : "monthly";
-
-        if (projectTab) {
-            projectTab.classList.toggle("is-active", isProject);
-            projectTab.setAttribute("aria-selected", isProject ? "true" : "false");
-        }
-        if (monthlyTab) {
-            monthlyTab.classList.toggle("is-active", !isProject);
-            monthlyTab.setAttribute("aria-selected", isProject ? "false" : "true");
-        }
-        if (projectView) {
-            projectView.classList.toggle("is-active", isProject);
-            projectView.hidden = !isProject;
-        }
-        if (monthlyView) {
-            monthlyView.classList.toggle("is-active", !isProject);
-            monthlyView.hidden = isProject;
-        }
-        syncViewMode();
-        renderCharts();
-    }
-
-    function setViewMode(mode) {
-        var isChart = mode !== "table";
-        var chartButton = byId("btnChartView");
-        var tableButton = byId("btnTableView");
-
-        state.viewMode = isChart ? "chart" : "table";
-
-        if (chartButton) {
-            chartButton.classList.toggle("is-active", isChart);
-            chartButton.setAttribute("aria-selected", isChart ? "true" : "false");
-        }
-        if (tableButton) {
-            tableButton.classList.toggle("is-active", !isChart);
-            tableButton.setAttribute("aria-selected", isChart ? "false" : "true");
-        }
-        syncViewMode();
-        renderCharts();
-    }
-
-    function syncViewMode() {
-        var showChart = state.viewMode === "chart";
-        var projectChart = byId("projectChartStats");
-        var projectTable = byId("projectTableWrap");
-        var monthlyChart = byId("monthlyChartStats");
-        var monthlyTable = byId("monthlyTableWrap");
-
-        if (projectChart) {
-            projectChart.classList.toggle("is-active", showChart);
-            projectChart.hidden = !showChart;
-        }
-        if (projectTable) {
-            projectTable.classList.toggle("is-active", !showChart);
-            projectTable.hidden = showChart;
-        }
-        if (monthlyChart) {
-            monthlyChart.classList.toggle("is-active", showChart);
-            monthlyChart.hidden = !showChart;
-        }
-        if (monthlyTable) {
-            monthlyTable.classList.toggle("is-active", !showChart);
-            monthlyTable.hidden = showChart;
-        }
-    }
-
     function renderSummary(summary) {
         var target = byId("summaryCards");
         var cards;
         if (!target) return;
         cards = [
-            { label: "프로젝트", value: summary.project_total || 0 },
-            { label: "태스크", value: summary.task_total || 0 },
-            { label: "진행", value: summary.task_in_progress || 0 },
-            { label: "완료", value: summary.task_done || 0 }
+            { label: "\uD504\uB85C\uC81D\uD2B8", value: summary.project_total || 0 },
+            { label: "\uD0DC\uC2A4\uD06C", value: summary.task_total || 0 },
+            { label: "\uC9C4\uD589\uC911", value: summary.task_in_progress || 0 },
+            { label: "\uC9C0\uC5F0", value: summary.overdue_task_count || 0 }
         ];
         target.innerHTML = cards.map(function (card) {
             return "<article class=\"summary-card\"><span>" + esc(card.label) + "</span><strong>" + esc(formatCount(card.value)) + "</strong></article>";
         }).join("");
     }
-
-    function ratio(value, maxValue) {
-        if (!maxValue || maxValue <= 0) return 0;
-        return Math.max(0, Math.min(100, Math.round((value / maxValue) * 100)));
+    function selectedProjectType() { return state.selectedProject ? String(state.selectedProject.project_type_code || "GENERAL") : "GENERAL"; }
+    function applyInsightCopy() {
+        var config = insightConfig(selectedProjectType());
+        var guide = byId("typeGuide");
+        var riskPanel = byId("riskList");
+        var recentPanel = byId("taskBoard");
+        if (guide) guide.innerHTML = "<strong>\uD575\uC2EC \uB370\uC774\uD130 \uAE30\uC900</strong><p>" + esc(config.guide) + "</p>";
+        UX.setText(byId("statusPanelTitle"), config.statusTitle);
+        UX.setText(byId("statusPanelCopy"), config.statusCopy);
+        UX.setText(byId("monthlyPanelTitle"), config.monthlyTitle);
+        UX.setText(byId("monthlyPanelCopy"), config.monthlyCopy);
+        if (riskPanel) {
+            UX.setText(riskPanel.parentNode.querySelector(".panel-title"), "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C");
+            UX.setText(riskPanel.parentNode.querySelector(".table-copy"), "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C\uC640 \uBCF4\uB958 \uD0DC\uC2A4\uD06C\uB97C \uD568\uAED8 \uD655\uC778\uD569\uB2C8\uB2E4.");
+        }
+        if (recentPanel) {
+            UX.setText(recentPanel.parentNode.querySelector(".panel-title"), "\uCD5C\uADFC \uD0DC\uC2A4\uD06C");
+            UX.setText(recentPanel.parentNode.querySelector(".table-copy"), "\uCD5C\uADFC \uBCC0\uACBD\uB418\uC5C8\uAC70\uB098 \uB9C8\uAC10\uC774 \uAC00\uAE4C\uC6B4 \uD0DC\uC2A4\uD06C\uB97C \uD655\uC778\uD569\uB2C8\uB2E4.");
+        }
     }
-
-    function budgetChartHtml(row, metric) {
-        var support = Math.max(0, number(row.support_total));
-        var actual = Math.max(0, number(row.actual_total));
-        var maxBudget = Math.max(support, actual, 1);
-        return "<div class=\"project-visual budget-visual\">"
-            + "<div class=\"budget-bar-group\">"
-            + "<div class=\"budget-bar-head\"><span>" + esc(metric.main.label) + "</span><strong>" + esc(metric.main.text) + "</strong></div>"
-            + "<div class=\"budget-track\"><span class=\"budget-fill is-support\" style=\"width:" + esc(ratio(support, maxBudget)) + "%\"></span></div>"
-            + "</div>"
-            + "<div class=\"budget-bar-group\">"
-            + "<div class=\"budget-bar-head\"><span>" + esc(metric.sub.label) + "</span><strong>" + esc(metric.sub.text) + "</strong></div>"
-            + "<div class=\"budget-track\"><span class=\"budget-fill is-actual\" style=\"width:" + esc(ratio(actual, maxBudget)) + "%\"></span></div>"
-            + "</div>"
-            + "<div class=\"project-visual-meta\">"
-            + "<span>잔액 " + esc(formatMoney(support - actual)) + "</span>"
-            + "<span>태스크 " + esc(formatCount(row.task_count)) + "건</span>"
-            + "</div>"
+    function renderProjectSelector() {
+        var select = byId("filterProject");
+        if (!select) return;
+        if (!state.projects.length) {
+            select.innerHTML = "<option value=\"\">\uD504\uB85C\uC81D\uD2B8 \uC5C6\uC74C</option>";
+            return;
+        }
+        select.innerHTML = state.projects.map(function (project) {
+            return "<option value=\"" + esc(project.project_id) + "\"" + (String(project.project_id) === String(state.selectedProjectId) ? " selected" : "") + ">"
+                + esc((project.project_key || "P") + " - " + (project.project_name || "-"))
+                + "</option>";
+        }).join("");
+    }
+    function renderProjectHero() {
+        var target = byId("projectHero");
+        var project = state.projectDetail || state.selectedProject;
+        var type = selectedProjectType();
+        var stats = taskStats(state.tasks);
+        var mainMetricText;
+        var subMetricText;
+        if (!target) return;
+        if (!project) {
+            target.innerHTML = "<div class=\"detail-empty\">\uD504\uB85C\uC81D\uD2B8\uB97C \uC120\uD0DD\uD558\uBA74 \uB300\uC2DC\uBCF4\uB4DC\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.</div>";
+            return;
+        }
+        if (type === "BLOG") {
+            mainMetricText = "\uC5C5\uCCB4 \uBD80\uB2F4\uAE08 " + formatMoney(stats.supportTotal);
+            subMetricText = "\uCD94\uAC00 \uACB0\uC81C\uAE08 " + formatMoney(stats.actualTotal);
+        } else if (type === "DEVELOPMENT") {
+            mainMetricText = "\uC9C0\uC5F0 \uBE44\uC728 " + formatPercent(stats.total ? Math.round((stats.overdue / stats.total) * 100) : 0);
+            subMetricText = "\uC9C0\uC5F0 \uAC74\uC218 " + formatCount(stats.overdue) + "\uAC74";
+        } else {
+            mainMetricText = "\uD0DC\uC2A4\uD06C " + formatCount(stats.total) + "\uAC74";
+            subMetricText = "\uD3C9\uADE0 \uC9C4\uD589\uB960 " + formatPercent(stats.avgProgress);
+        }
+        target.innerHTML = "<div class=\"dashboard-project-hero-main\"><div><div class=\"hero-kicker\">" + esc(typeLabel(type)) + " \uD504\uB85C\uC81D\uD2B8</div><h3 class=\"dashboard-project-title\">" + esc(project.project_name || "-") + "</h3><p class=\"workspace-copy dashboard-project-copy\">" + esc(project.description || "\uD504\uB85C\uC81D\uD2B8 \uC124\uBA85\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p></div><div class=\"dashboard-project-badges\"><span class=\"status-chip\">" + esc(project.project_key || "-") + "</span><span class=\"status-chip\">" + esc(typeLabel(type)) + "</span><span class=\"status-chip status-" + esc(String(project.project_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(project.project_status || "-") + "</span></div></div>"
+            + "<div class=\"dashboard-project-meta-grid\"><article><span>\uAE30\uAC04</span><strong>" + esc(formatPeriod(project.start_date, project.end_date)) + "</strong></article><article><span>\uB2F4\uB2F9\uC790</span><strong>" + esc(project.owner_user_id || "-") + "</strong></article><article><span>\uAD6C\uC131\uC6D0</span><strong>" + esc(formatCount(project.member_count || 0)) + "\uBA85</strong></article><article><span>\uB9C8\uC77C\uC2A4\uD1A4</span><strong>" + esc(formatCount(project.milestone_count || 0)) + "\uAC74</strong></article><article><span>\uD575\uC2EC \uC9C0\uD45C</span><strong>" + esc(mainMetricText) + "</strong></article><article><span>\uBCF4\uC870 \uC9C0\uD45C</span><strong>" + esc(subMetricText) + "</strong></article></div>";
+    }
+    function renderMetricCards() {
+        var target = byId("projectMetricCards");
+        var stats = taskStats(state.tasks);
+        var type = selectedProjectType();
+        var cards;
+        if (!target) return;
+        if (type === "BLOG") {
+            cards = [
+                { label: "\uC5C5\uCCB4 \uBD80\uB2F4\uAE08 \uCD1D\uC561", value: formatMoney(stats.supportTotal), tone: "focus" },
+                { label: "\uCD94\uAC00 \uACB0\uC81C\uAE08 \uCD1D\uC561", value: formatMoney(stats.actualTotal), tone: "neutral" },
+                { label: "\uCC28\uC561", value: formatMoney(stats.supportTotal - stats.actualTotal), tone: "good" },
+                { label: "\uD0DC\uC2A4\uD06C", value: formatCount(stats.total) + "\uAC74", tone: "neutral" },
+                { label: "\uC644\uB8CC", value: formatCount(stats.done) + "\uAC74", tone: "good" },
+                { label: "\uC9C0\uC5F0", value: formatCount(stats.overdue) + "\uAC74", tone: "danger" }
+            ];
+        } else if (type === "DEVELOPMENT") {
+            cards = [
+                { label: "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C \uBE44\uC728", value: formatPercent(stats.total ? Math.round((stats.overdue / stats.total) * 100) : 0), tone: "danger" },
+                { label: "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C \uAC74\uC218", value: formatCount(stats.overdue) + "\uAC74", tone: "danger" },
+                { label: "\uC9C4\uD589 \uC911", value: formatCount(stats.inProgress) + "\uAC74", tone: "focus" },
+                { label: "\uC644\uB8CC", value: formatCount(stats.done) + "\uAC74", tone: "good" },
+                { label: "\uD3C9\uADE0 \uC9C4\uD589\uB960", value: formatPercent(stats.avgProgress), tone: "focus" },
+                { label: "\uC804\uCCB4 \uD0DC\uC2A4\uD06C", value: formatCount(stats.total) + "\uAC74", tone: "neutral" }
+            ];
+        } else {
+            cards = [
+                { label: "\uD0DC\uC2A4\uD06C \uAC74\uC218", value: formatCount(stats.total) + "\uAC74", tone: "neutral" },
+                { label: "\uD3C9\uADE0 \uC9C4\uD589\uB960", value: formatPercent(stats.avgProgress), tone: "focus" },
+                { label: "\uC644\uB8CC", value: formatCount(stats.done) + "\uAC74", tone: "good" },
+                { label: "\uC9C4\uD589 \uC911", value: formatCount(stats.inProgress) + "\uAC74", tone: "focus" },
+                { label: "\uBBF8\uC644\uB8CC", value: formatCount(Math.max(0, stats.total - stats.done)) + "\uAC74", tone: "neutral" },
+                { label: "\uC9C0\uC5F0", value: formatCount(stats.overdue) + "\uAC74", tone: "danger" }
+            ];
+        }
+        target.innerHTML = cards.map(function (card) { return "<article class=\"dashboard-metric-card tone-" + esc(card.tone) + "\"><span>" + esc(card.label) + "</span><strong>" + esc(card.value) + "</strong></article>"; }).join("");
+    }
+    function statusColor(status) {
+        if (status === "DONE") return "#16a34a";
+        if (status === "IN_PROGRESS") return "#d97706";
+        if (status === "HOLD") return "#dc2626";
+        return "#475569";
+    }
+    function renderStatusChart() {
+        var target = byId("statusChart");
+        var stats = taskStats(state.tasks);
+        var type = selectedProjectType();
+        var total = Math.max(stats.total, 1);
+        var segments;
+        var totalMoney;
+        if (!target) return;
+        if (type === "BLOG") {
+            totalMoney = Math.max(1, stats.supportTotal, stats.actualTotal);
+            target.innerHTML = "<div class=\"dashboard-bar-list\">"
+                + "<article class=\"dashboard-bar-row\"><div class=\"dashboard-bar-head\"><span>\uC5C5\uCCB4 \uBD80\uB2F4\uAE08 \uCD1D\uC561</span><strong>" + esc(formatMoney(stats.supportTotal)) + "</strong></div><div class=\"dashboard-bar-track\"><span class=\"dashboard-bar-fill\" style=\"width:" + esc(String(Math.round((stats.supportTotal / totalMoney) * 100))) + "%\"></span></div></article>"
+                + "<article class=\"dashboard-bar-row\"><div class=\"dashboard-bar-head\"><span>\uCD94\uAC00 \uACB0\uC81C\uAE08 \uCD1D\uC561</span><strong>" + esc(formatMoney(stats.actualTotal)) + "</strong></div><div class=\"dashboard-bar-track\"><span class=\"dashboard-bar-fill\" style=\"width:" + esc(String(Math.round((stats.actualTotal / totalMoney) * 100))) + "%;background:linear-gradient(135deg, #ea580c 0%, #f97316 100%)\"></span></div></article></div>";
+            return;
+        }
+        segments = [
+            { label: "TODO", value: stats.todo, color: statusColor("TODO") },
+            { label: "IN_PROGRESS", value: stats.inProgress, color: statusColor("IN_PROGRESS") },
+            { label: "DONE", value: stats.done, color: statusColor("DONE") },
+            { label: "HOLD", value: stats.hold, color: statusColor("HOLD") }
+        ];
+        target.innerHTML = "<div class=\"dashboard-stack-bar\">"
+            + segments.map(function (segment) { return "<span class=\"dashboard-stack-segment\" style=\"width:" + esc(String(Math.max(4, Math.round((segment.value / total) * 100)))) + "%;background:" + esc(segment.color) + "\"></span>"; }).join("")
+            + "</div><div class=\"dashboard-legend-grid\">"
+            + segments.map(function (segment) { return "<article class=\"dashboard-legend-item\"><span class=\"dashboard-dot\" style=\"background:" + esc(segment.color) + "\"></span><strong>" + esc(segment.label) + "</strong><em>" + esc(formatCount(segment.value)) + "\uAC74</em></article>"; }).join("")
             + "</div>";
     }
-
-    function timelineSegment(start, end, minStart, maxEnd) {
-        var total = dayDiff(minStart, maxEnd);
-        var offset = dayDiff(minStart, start);
-        var duration = dayDiff(start, end);
-        if (total == null || total <= 0 || offset == null || duration == null) {
-            return { left: 0, width: 0 };
+    function getTaskBasisMonth(task, type) {
+        var basis = type === "DEVELOPMENT" ? (task.actual_end_date || task.due_date || task.start_date) : (task.due_date || task.start_date);
+        return basis ? String(basis).slice(0, 7) : "";
+    }
+    function monthlyTrendStats() {
+        var type = selectedProjectType();
+        var map = {};
+        var months = [];
+        var now = today();
+        var index;
+        var cursor;
+        state.tasks.forEach(function (task) {
+            var key = getTaskBasisMonth(task, type);
+            if (!key) return;
+            if (!map[key]) {
+                map[key] = { month: key, total: 0, done: 0, inProgress: 0, main: 0, sub: 0 };
+            }
+            map[key].total += 1;
+            if (String(task.task_status || "") === "DONE") {
+                map[key].done += 1;
+            } else {
+                map[key].inProgress += 1;
+            }
+            if (type === "BLOG") {
+                map[key].main += number(task.support_amount);
+                map[key].sub += number(task.actual_amount);
+            } else if (type === "DEVELOPMENT") {
+                if (task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today()) {
+                    map[key].sub += 1;
+                }
+            } else {
+                map[key].main += number(task.progress_rate);
+            }
+        });
+        for (index = 11; index >= 0; index--) {
+            cursor = new Date(now.getFullYear(), now.getMonth() - index, 1);
+            months.push(monthKey(cursor));
+        }
+        return months.map(function (key) {
+            var row = map[key] || { month: key, total: 0, done: 0, inProgress: 0, main: 0, sub: 0 };
+            if (type === "DEVELOPMENT") {
+                row.main = row.total ? Math.round((row.sub / row.total) * 100) : 0;
+            } else if (type === "GENERAL") {
+                row.main = row.total ? Math.round(row.main / row.total) : 0;
+                row.sub = row.total;
+            }
+            return row;
+        });
+    }
+    function monthlyMetricLabels(type) {
+        if (type === "BLOG") {
+            return {
+                main: "\uD575\uC2EC \uC9C0\uD45C(\uC5C5\uCCB4 \uBD80\uB2F4\uAE08)",
+                sub: "\uBCF4\uC870 \uC9C0\uD45C(\uCD94\uAC00 \uACB0\uC81C\uAE08)"
+            };
+        }
+        if (type === "DEVELOPMENT") {
+            return {
+                main: "\uD575\uC2EC \uC9C0\uD45C(\uC9C0\uC5F0 \uBE44\uC728)",
+                sub: "\uBCF4\uC870 \uC9C0\uD45C(\uC9C0\uC5F0 \uAC74\uC218)"
+            };
         }
         return {
-            left: Math.max(0, Math.min(100, (offset / total) * 100)),
-            width: Math.max(8, Math.min(100, (duration / total) * 100))
+            main: "\uD575\uC2EC \uC9C0\uD45C(\uD3C9\uADE0 \uC9C4\uD589\uB960)",
+            sub: "\uBCF4\uC870 \uC9C0\uD45C(\uD0DC\uC2A4\uD06C \uAC74\uC218)"
         };
     }
-
-    function devTimelineHtml(row, metric) {
-        var delayRatio = Math.max(0, Math.min(100, number(metric.main.value)));
-        var safeTaskCount = Math.max(0, number(row.task_count));
-        var onTrackCount = Math.max(0, safeTaskCount - number(row.overdue_count));
-        return "<div class=\"project-visual dev-visual\">"
-            + "<div class=\"general-progress-head\">"
-            + "<div><span>" + esc(metric.main.label) + "</span><strong>" + esc(metric.main.text) + "</strong></div>"
-            + "<div class=\"progress-ring is-delay\"><span>" + esc(delayRatio) + "%</span></div>"
-            + "</div>"
-            + "<div class=\"general-progress-track is-delay\"><span class=\"general-progress-fill is-delay\" style=\"width:" + esc(delayRatio) + "%\"></span></div>"
-            + "<div class=\"project-visual-stats\">"
-            + "<article><span>전체 태스크</span><strong>" + esc(formatCount(safeTaskCount)) + "</strong></article>"
-            + "<article><span>지연 태스크</span><strong>" + esc(formatCount(row.overdue_count)) + "</strong></article>"
-            + "<article><span>정상 태스크</span><strong>" + esc(formatCount(onTrackCount)) + "</strong></article>"
-            + "</div>"
-            + "<div class=\"project-visual-meta\">"
-            + "<span>" + esc(metric.sub.label) + " " + esc(metric.sub.text) + "</span>"
-            + "<span>완료 " + esc(formatCount(row.done_count)) + "건</span>"
-            + "</div>"
-            + "</div>";
+    function monthlyMetricAxisName(type) {
+        if (type === "BLOG") return "\uAE08\uC561(\uC6D0)";
+        if (type === "DEVELOPMENT") return "\uC9C0\uD45C(% / \uAC74)";
+        return "\uC9C0\uD45C(% / \uAC74)";
     }
-
-    function generalProgressHtml(row, metric) {
-        var progress = Math.max(0, Math.min(100, Math.round(number(row.progress_avg))));
-        var remaining = Math.max(0, number(row.task_count) - number(row.done_count));
-        return "<div class=\"project-visual general-visual\">"
-            + "<div class=\"general-progress-head\">"
-            + "<div><span>" + esc(metric.sub.label) + "</span><strong>" + esc(metric.sub.text) + "</strong></div>"
-            + "<div class=\"progress-ring\"><span>" + esc(progress) + "%</span></div>"
-            + "</div>"
-            + "<div class=\"general-progress-track\"><span class=\"general-progress-fill\" style=\"width:" + esc(progress) + "%\"></span></div>"
-            + "<div class=\"project-visual-stats\">"
-            + "<article><span>전체</span><strong>" + esc(formatCount(row.task_count)) + "</strong></article>"
-            + "<article><span>완료</span><strong>" + esc(formatCount(row.done_count)) + "</strong></article>"
-            + "<article><span>잔여</span><strong>" + esc(formatCount(remaining)) + "</strong></article>"
-            + "</div>"
-            + "</div>";
-    }
-
-    function projectVisualHtml(row, metric) {
-        var type = String(row.project_type_code || "GENERAL");
-        if (type === "BLOG") return budgetChartHtml(row, metric);
-        if (type === "DEVELOPMENT") return devTimelineHtml(row, metric);
-        return generalProgressHtml(row, metric);
-    }
-
-    function renderProjectCharts() {
-        var target = byId("projectChartStats");
+    function renderMonthlyTrendChart() {
+        var target = byId("monthlyTrendChart");
+        var rows = monthlyTrendStats();
+        var echarts = global.echarts;
+        var type = selectedProjectType();
+        var labels = monthlyMetricLabels(type);
+        var metricAxisName = monthlyMetricAxisName(type);
         if (!target) return;
-        if (!state.projectStats.length) {
-            target.innerHTML = "<div class=\"detail-empty\">프로젝트 데이터가 없습니다.</div>";
+        if (state.monthlyChart) {
+            state.monthlyChart.dispose();
+            state.monthlyChart = null;
+        }
+        if (!echarts) {
+            target.innerHTML = "<div class=\"detail-empty\">\uCC28\uD2B8 \uB77C\uC774\uBE0C\uB7EC\uB9AC\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.</div>";
             return;
         }
-        target.innerHTML = state.projectStats.map(function (row) {
-            var type = String(row.project_type_code || "GENERAL");
-            var metric = projectMetricBundle(row);
-            return "<article class=\"dashboard-project-card type-" + esc(type.toLowerCase()) + "\">"
-                + "<div class=\"dashboard-card-head\">"
-                + "<div><strong>" + esc(row.project_name || "-") + "</strong><span>" + esc(row.project_key || "-") + "</span></div>"
-                + "<em>" + esc(typeLabel(type)) + "</em>"
-                + "</div>"
-                + "<div class=\"dashboard-mini-chart-head\">"
-                + "<div><strong>" + esc(metric.main.label) + "</strong><p>" + esc(metric.main.text) + "</p></div>"
-                + "<div class=\"dashboard-mini-summary\">"
-                + "<span>" + esc(metric.sub.label) + " " + esc(metric.sub.text) + "</span>"
-                + "<span>태스크 " + esc(formatCount(row.task_count)) + "건</span>"
-                + "</div>"
-                + "</div>"
-                + projectVisualHtml(row, metric)
-                + "<div class=\"dashboard-project-notes\">"
-                + "<div class=\"dashboard-project-note\"><span>" + esc(metric.main.label) + "</span><strong>" + esc(metric.main.text) + "</strong></div>"
-                + "<div class=\"dashboard-project-note\"><span>" + esc(metric.sub.label) + "</span><strong>" + esc(metric.sub.text) + "</strong></div>"
-                + "<div class=\"dashboard-project-note is-period\"><span>기간</span><strong>" + projectPeriodText(row) + "</strong></div>"
-                + "</div>"
-                + "</article>";
-        }).join("");
+        target.innerHTML = "<div id=\"monthlyTrendCanvas\" class=\"dashboard-chart-canvas-wrap\"></div>";
+        state.monthlyChart = echarts.init(byId("monthlyTrendCanvas"));
+        state.monthlyChart.setOption({
+            animationDuration: 450,
+            color: ["#d97706", "#16a34a", "#2563eb", "#7c3aed"],
+            grid: { left: 52, right: 64, top: 54, bottom: 34 },
+            legend: {
+                top: 10,
+                itemWidth: 12,
+                itemHeight: 12,
+                textStyle: { color: "#334155", fontSize: 12, fontWeight: 700 }
+            },
+            tooltip: {
+                trigger: "axis",
+                axisPointer: { type: "shadow" },
+                backgroundColor: "rgba(15, 23, 42, 0.92)",
+                borderWidth: 0,
+                textStyle: { color: "#e2e8f0" }
+            },
+            xAxis: {
+                type: "category",
+                data: rows.map(function (row) { return row.month; }),
+                axisTick: { show: false },
+                axisLine: { lineStyle: { color: "#cbd5e1" } },
+                axisLabel: { color: "#64748b", fontSize: 11, fontWeight: 700 }
+            },
+            yAxis: [
+                {
+                    type: "value",
+                    name: "\uD0DC\uC2A4\uD06C \uAC74\uC218",
+                    minInterval: 1,
+                    axisLabel: { color: "#64748b" },
+                    nameTextStyle: { color: "#475569", fontWeight: 700 },
+                    splitLine: { lineStyle: { color: "rgba(148, 163, 184, 0.24)" } }
+                },
+                {
+                    type: "value",
+                    name: metricAxisName,
+                    axisLabel: { color: "#2563eb" },
+                    nameTextStyle: { color: "#2563eb", fontWeight: 700 },
+                    splitLine: { show: false }
+                }
+            ],
+            series: [
+                {
+                    name: "\uC9C4\uD589\uC911",
+                    type: "bar",
+                    stack: "taskFlow",
+                    barWidth: 26,
+                    yAxisIndex: 0,
+                    emphasis: { focus: "series" },
+                    itemStyle: { borderRadius: [8, 8, 0, 0] },
+                    data: rows.map(function (row) { return row.inProgress; })
+                },
+                {
+                    name: "\uC644\uB8CC",
+                    type: "bar",
+                    stack: "taskFlow",
+                    barWidth: 26,
+                    yAxisIndex: 0,
+                    emphasis: { focus: "series" },
+                    itemStyle: { borderRadius: [8, 8, 0, 0] },
+                    data: rows.map(function (row) { return row.done; })
+                },
+                {
+                    name: labels.main,
+                    type: "line",
+                    yAxisIndex: 1,
+                    smooth: 0.28,
+                    symbol: "circle",
+                    symbolSize: 9,
+                    lineStyle: { width: 3 },
+                    itemStyle: { borderWidth: 2, borderColor: "#ffffff" },
+                    data: rows.map(function (row) { return row.main; })
+                },
+                {
+                    name: labels.sub,
+                    type: "line",
+                    yAxisIndex: 1,
+                    smooth: 0.28,
+                    symbol: "circle",
+                    symbolSize: 9,
+                    lineStyle: { width: 3, type: "dashed" },
+                    itemStyle: { borderWidth: 2, borderColor: "#ffffff" },
+                    data: rows.map(function (row) { return row.sub; })
+                }
+            ]
+        });
     }
-
-    function setupCanvas(canvas, fallbackWidth, fallbackHeight) {
-        var ratio;
-        var rect;
-        var width;
-        var height;
-        var ctx;
-        if (!canvas) return null;
-        ratio = global.devicePixelRatio || 1;
-        rect = canvas.parentNode ? canvas.parentNode.getBoundingClientRect() : null;
-        width = Math.max(320, Math.round((rect && rect.width) || fallbackWidth));
-        height = fallbackHeight;
-        canvas.width = Math.round(width * ratio);
-        canvas.height = Math.round(height * ratio);
-        canvas.style.width = width + "px";
-        canvas.style.height = height + "px";
-        ctx = canvas.getContext("2d");
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-        return { ctx: ctx, width: width, height: height };
-    }
-
-    function niceMax(maxValue) {
-        var exponent;
-        var fraction;
-        var niceFraction;
-        if (maxValue <= 0) return 10;
-        exponent = Math.floor(Math.log(maxValue) / Math.log(10));
-        fraction = maxValue / Math.pow(10, exponent);
-        if (fraction <= 1) niceFraction = 1;
-        else if (fraction <= 2) niceFraction = 2;
-        else if (fraction <= 5) niceFraction = 5;
-        else niceFraction = 10;
-        return niceFraction * Math.pow(10, exponent);
-    }
-
-    function drawRoundedBar(ctx, x, y, width, height, radius, color) {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(x, y, width, height, radius);
-        ctx.fill();
-    }
-
-    function monthlySectionHtml(typeCode, rows) {
-        var maxMain = Math.max.apply(null, rows.map(function (row) { return monthlyMetricBundle(row).main.value; }).concat([1]));
-        var maxSub = Math.max.apply(null, rows.map(function (row) { return monthlyMetricBundle(row).sub.value; }).concat([1]));
-        return "<section class=\"monthly-type-section type-" + esc(typeCode.toLowerCase()) + "\">"
-            + "<div class=\"monthly-type-head\"><strong>" + esc(typeLabel(typeCode)) + "</strong><p>" + esc(rows.length) + "개월 집계</p></div>"
-            + rows.map(function (row) {
-                var metric = monthlyMetricBundle(row);
-                return "<article class=\"monthly-type-card\">"
-                    + "<div class=\"monthly-type-card-head\"><strong>" + esc(row.month_key || "-") + "</strong><span>" + esc(typeLabel(typeCode)) + "</span></div>"
-                    + "<div class=\"monthly-metric-block\">"
-                    + "<div class=\"monthly-metric-head\"><span>" + esc(metric.main.label) + "</span><strong>" + esc(metric.main.text) + "</strong></div>"
-                    + "<div class=\"monthly-metric-track\"><span class=\"monthly-metric-fill\" style=\"width:" + esc(ratio(metric.main.value, maxMain)) + "%;background:" + esc(typeColor(typeCode)) + "\"></span></div>"
-                    + "</div>"
-                    + "<div class=\"monthly-metric-block is-sub\">"
-                    + "<div class=\"monthly-metric-head\"><span>" + esc(metric.sub.label) + "</span><strong>" + esc(metric.sub.text) + "</strong></div>"
-                    + "<div class=\"monthly-metric-track\"><span class=\"monthly-metric-fill is-sub\" style=\"width:" + esc(ratio(metric.sub.value, maxSub)) + "%\"></span></div>"
-                    + "</div>"
-                    + "<div class=\"project-visual-meta\">"
-                    + "<span>태스크 " + esc(formatCount(row.task_count)) + "건</span>"
-                    + "<span>완료 " + esc(formatCount(row.done_count)) + "건</span>"
-                    + "</div>"
-                    + "</article>";
-            }).join("")
-            + "</section>";
-    }
-
-    function renderMonthlyChart() {
-        var target = byId("monthlyChartStats");
-        var groups;
+    function renderTimelineChart() {
+        var target = byId("timelineChart");
+        var rows = state.tasks.slice().filter(function (task) { return task.start_date || task.due_date; }).sort(function (a, b) { return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")); }).slice(0, 8);
+        var minDate;
+        var maxDate;
         if (!target) return;
-        if (!state.monthlyStats.length) {
-            target.innerHTML = "<div class=\"detail-empty\">월별 데이터가 없습니다.</div>";
+        if (!rows.length) {
+            target.innerHTML = "<div class=\"detail-empty\">\uC77C\uC815 \uBC94\uC704\uB97C \uD45C\uC2DC\uD560 \uD0DC\uC2A4\uD06C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
             return;
         }
-        groups = {
-            BLOG: state.monthlyStats.filter(function (row) { return String(row.project_type_code) === "BLOG"; }),
-            DEVELOPMENT: state.monthlyStats.filter(function (row) { return String(row.project_type_code) === "DEVELOPMENT"; }),
-            GENERAL: state.monthlyStats.filter(function (row) { return String(row.project_type_code) === "GENERAL"; })
-        };
-        target.innerHTML = "<div class=\"monthly-type-layout\">"
-            + (groups.BLOG.length ? monthlySectionHtml("BLOG", groups.BLOG) : "")
-            + (groups.DEVELOPMENT.length ? monthlySectionHtml("DEVELOPMENT", groups.DEVELOPMENT) : "")
-            + (groups.GENERAL.length ? monthlySectionHtml("GENERAL", groups.GENERAL) : "")
-            + "</div>";
-    }
-
-    function renderCharts() {
-        if (state.viewMode !== "chart") return;
-        if (state.activeTab === "project") {
-            renderProjectCharts();
-            return;
-        }
-        renderMonthlyChart();
-    }
-
-    function renderProjectTable() {
-        var tableTarget = byId("projectStatsTable");
-        if (!tableTarget) return;
-        if (!state.projectStats.length) {
-            tableTarget.innerHTML = "<tr><td colspan=\"6\" class=\"empty-row\">프로젝트 데이터가 없습니다.</td></tr>";
-            return;
-        }
-        tableTarget.innerHTML = state.projectStats.map(function (row) {
-            var type = String(row.project_type_code || "GENERAL");
-            var metric = projectMetricBundle(row);
-            return "<tr>"
-                + "<td><strong>" + esc(row.project_name || "-") + "</strong><div class=\"row-sub\">" + esc(row.project_key || "-") + "</div></td>"
-                + "<td>" + esc(typeLabel(type)) + "</td>"
-                + "<td>" + esc(metric.main.text) + "</td>"
-                + "<td>" + esc(metric.sub.text) + "</td>"
-                + "<td>" + esc(formatCount(row.task_count)) + "건</td>"
-                + "<td>" + projectPeriodText(row) + "</td>"
-                + "</tr>";
+        minDate = rows.reduce(function (acc, task) { var date = parseDate(task.start_date || task.due_date); return !acc || (date && date < acc) ? date : acc; }, null);
+        maxDate = rows.reduce(function (acc, task) { var date = parseDate(task.due_date || task.start_date); return !acc || (date && date > acc) ? date : acc; }, null);
+        target.innerHTML = rows.map(function (task) {
+            var start = parseDate(task.start_date || task.due_date);
+            var end = parseDate(task.due_date || task.start_date);
+            var total = Math.max(1, Math.round((maxDate - minDate) / 86400000));
+            var left = start ? Math.max(0, Math.round((((start - minDate) / 86400000) / total) * 100)) : 0;
+            var width = end && start ? Math.max(8, Math.round((((end - start) / 86400000) / total) * 100)) : 12;
+            return "<article class=\"dashboard-timeline-row\"><div class=\"dashboard-timeline-copy\"><strong>" + esc(task.task_title || "-") + "</strong><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span></div><div class=\"dashboard-timeline-track\"><span class=\"dashboard-timeline-fill status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\" style=\"left:" + esc(String(left)) + "%;width:" + esc(String(width)) + "%\"></span></div></article>";
         }).join("");
     }
-
-    function renderMonthlyTable() {
-        var tableTarget = byId("monthlyStats");
-        if (!tableTarget) return;
-        if (!state.monthlyStats.length) {
-            tableTarget.innerHTML = "<tr><td colspan=\"5\" class=\"empty-row\">월별 데이터가 없습니다.</td></tr>";
+    function bindTaskLinks(target) {
+        if (!target) return;
+        Array.prototype.forEach.call(target.querySelectorAll(".js-task-link"), function (button) {
+            button.addEventListener("click", function () {
+                moveToTask(button.getAttribute("data-project-id"), button.getAttribute("data-task-id"));
+            });
+        });
+    }
+    function renderRiskList() {
+        var target = byId("riskList");
+        var risky = state.tasks.filter(function (task) {
+            var overdue = task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today();
+            var stalled = String(task.task_status || "") === "HOLD";
+            return overdue || stalled;
+        }).slice(0, 6);
+        if (!target) return;
+        if (!risky.length) {
+            target.innerHTML = "<div class=\"detail-empty\">\uC989\uC2DC \uD655\uC778\uC774 \uD544\uC694\uD55C \uC9C0\uC5F0 \uD0DC\uC2A4\uD06C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
             return;
         }
-        tableTarget.innerHTML = state.monthlyStats.map(function (row) {
-            var metric = monthlyMetricBundle(row);
-            return "<tr>"
-                + "<td>" + esc(row.month_key || "-") + "</td>"
-                + "<td>" + esc(typeLabel(String(row.project_type_code || "GENERAL"))) + "</td>"
-                + "<td>" + esc(formatCount(row.task_count)) + "건</td>"
-                + "<td>" + esc(metric.main.label + " " + metric.main.text) + "</td>"
-                + "<td>" + esc(metric.sub.label + " " + metric.sub.text) + "</td>"
-                + "</tr>";
+        target.innerHTML = risky.map(function (task) {
+            var overdue = task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today();
+            return "<button type=\"button\" class=\"dashboard-watch-card is-risk js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><strong>" + esc(task.task_title || "-") + "</strong><p>" + esc(task.project_name || "-") + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(task.task_status || "-") + "</span><span>" + esc(overdue ? "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C" : "\uBCF4\uB958 \uD0DC\uC2A4\uD06C") + "</span></div></button>";
         }).join("");
+        bindTaskLinks(target);
     }
-
-    function readFilters() {
-        return {
-            project_type_code: byId("filterType").value
-        };
+    function renderTaskBoard() {
+        var target = byId("taskBoard");
+        var rows = state.tasks.slice().sort(function (a, b) { return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")); }).slice(0, 6);
+        if (!target) return;
+        if (!rows.length) {
+            target.innerHTML = "<div class=\"detail-empty\">\uD45C\uC2DC\uD560 \uCD5C\uADFC \uD0DC\uC2A4\uD06C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
+            return;
+        }
+        target.innerHTML = rows.map(function (task) {
+            return "<button type=\"button\" class=\"dashboard-watch-card js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><div class=\"dashboard-watch-head\"><strong>" + esc(task.task_title || "-") + "</strong><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></div><p>" + esc(task.assignee_user_id || "-") + " / " + esc(task.priority || "-") + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(formatPercent(task.progress_rate || 0)) + "</span></div></button>";
+        }).join("");
+        bindTaskLinks(target);
     }
-
+    function renderDashboard() {
+        renderProjectSelector();
+        applyInsightCopy();
+        renderProjectHero();
+        renderMetricCards();
+        renderStatusChart();
+        renderMonthlyTrendChart();
+        renderTimelineChart();
+        renderRiskList();
+        renderTaskBoard();
+    }
+    function currentFilter() { return { project_type_code: byId("filterType").value }; }
+    function applySelectedProject(projectId) {
+        state.selectedProjectId = projectId ? String(projectId) : "";
+        state.selectedProject = state.projects.find(function (project) { return String(project.project_id) === state.selectedProjectId; }) || null;
+    }
+    function loadProjectDetail() {
+        if (!state.selectedProjectId) {
+            state.projectDetail = null;
+            state.tasks = [];
+            renderDashboard();
+            return Promise.resolve();
+        }
+        return Promise.all([
+            UX.requestJson("/project/detail.json", { project_id: state.selectedProjectId }),
+            UX.requestJson("/task/list.json", { project_id: state.selectedProjectId })
+        ]).then(function (results) {
+            var detail = results[0];
+            var tasks = results[1];
+            state.projectDetail = detail && detail.ok === true ? detail.data || null : null;
+            state.tasks = tasks && tasks.ok === true && Array.isArray(tasks.data) ? tasks.data : [];
+            renderDashboard();
+        });
+    }
+    function loadProjects(preserveSelection) {
+        return UX.requestJson("/project/list.json", currentFilter()).then(function (response) {
+            var nextId;
+            state.projects = response && response.ok === true && Array.isArray(response.data) ? response.data : [];
+            nextId = preserveSelection && state.projects.some(function (project) { return String(project.project_id) === String(state.selectedProjectId); }) ? state.selectedProjectId : (state.projects[0] ? String(state.projects[0].project_id) : "");
+            applySelectedProject(nextId);
+            return loadProjectDetail();
+        });
+    }
     function loadDashboard() {
         return Promise.all([
             UX.requestJson("/auth/me.json", {}),
-            UX.requestJson("/dashboard/detail.json", readFilters())
+            UX.requestJson("/dashboard/summary.json", currentFilter())
         ]).then(function (results) {
             var me = results[0];
-            var dashboard = results[1];
-            var data;
-            if (!me || me.ok !== true || !dashboard || dashboard.ok !== true) {
+            var summaryResponse = results[1];
+            if (!me || me.ok !== true || !summaryResponse || summaryResponse.ok !== true) {
                 redirectToLogin();
                 return;
             }
-            data = dashboard.data || {};
+            state.currentUser = me.data || {};
+            state.summary = (summaryResponse.data && summaryResponse.data.summary) || {};
             bindInfo("currentUser", [
-                { label: "아이디", value: (me.data && me.data.user_id) || "-" },
-                { label: "이름", value: (me.data && me.data.user_nm) || "-" },
-                { label: "권한", value: (me.data && me.data.roles || []).join(", ") || "-" }
+                { label: "\uC544\uC774\uB514", value: state.currentUser.user_id || "-" },
+                { label: "\uC774\uB984", value: state.currentUser.user_nm || "-" },
+                { label: "\uAD8C\uD55C", value: (state.currentUser.roles || []).join(", ") || "-" }
             ]);
-            renderSummary(data.summary || {});
-            state.projectStats = Array.isArray(data.project_stats) ? data.project_stats : [];
-            state.monthlyStats = Array.isArray(data.monthly_stats) ? data.monthly_stats : [];
-            renderProjectTable();
-            renderMonthlyTable();
-            renderCharts();
-            syncViewMode();
-        }).catch(function () {
-            redirectToLogin();
-        });
+            renderSummary(state.summary);
+            return loadProjects(true);
+        }).catch(function () { redirectToLogin(); });
     }
-
     function resetFilters() {
         byId("filterType").value = "";
+        state.selectedProjectId = "";
         loadDashboard();
     }
-
     function logout() {
         UX.requestJson("/logout.json", {}).finally(function () {
             UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
             redirectToLogin();
         });
     }
-
-    function isMobileViewport() {
-        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
-    }
-
+    function isMobileViewport() { return global.matchMedia && global.matchMedia("(max-width: 768px)").matches; }
     function setSidebarOpen(open) {
         var sidebar = byId("workspaceSidebar");
         var toggle = byId("btnSidebarToggle");
         state.sidebarOpen = !!open;
         if (!sidebar || !toggle) return;
         if (isMobileViewport()) {
-            UX.setText(toggle, state.sidebarOpen ? "닫기" : "메뉴");
+            UX.setText(toggle, state.sidebarOpen ? "\uB2EB\uAE30" : "\uBA54\uB274");
             sidebar.classList.toggle("is-open", state.sidebarOpen);
         } else {
-            UX.setText(toggle, "메뉴");
+            UX.setText(toggle, "\uBA54\uB274");
             sidebar.classList.remove("is-open");
         }
     }
-
-    function syncSidebarMode() {
-        if (isMobileViewport()) {
-            setSidebarOpen(false);
-            return;
-        }
-        setSidebarOpen(true);
-    }
-
+    function syncSidebarMode() { if (isMobileViewport()) { setSidebarOpen(false); return; } setSidebarOpen(true); }
     function bindEvents() {
-        UX.bindOnce(byId("btnSearch"), "click", loadDashboard);
+        UX.bindOnce(byId("btnSearch"), "click", function () { loadProjects(false); });
         UX.bindOnce(byId("btnReset"), "click", resetFilters);
         UX.bindOnce(byId("btnReload"), "click", loadDashboard);
         UX.bindOnce(byId("btnLogout"), "click", logout);
-        UX.bindOnce(byId("tabProjectStats"), "click", function () { setActiveTab("project"); });
-        UX.bindOnce(byId("tabMonthlyStats"), "click", function () { setActiveTab("monthly"); });
-        UX.bindOnce(byId("btnChartView"), "click", function () { setViewMode("chart"); });
-        UX.bindOnce(byId("btnTableView"), "click", function () { setViewMode("table"); });
         UX.bindOnce(byId("btnSidebarToggle"), "click", function () { setSidebarOpen(!state.sidebarOpen); });
-        UX.bindOnce(byId("filterType"), "change", loadDashboard);
+        UX.bindOnce(byId("filterType"), "change", function () { state.selectedProjectId = ""; loadDashboard(); });
+        UX.bindOnce(byId("filterProject"), "change", function () { applySelectedProject(byId("filterProject").value); loadProjectDetail(); });
         global.addEventListener("resize", function () {
             syncSidebarMode();
-            renderCharts();
+            if (state.monthlyChart) state.monthlyChart.resize();
         });
     }
-
     bindEvents();
-    setActiveTab(state.activeTab);
-    setViewMode(state.viewMode);
     syncSidebarMode();
+    renderDashboard();
     loadDashboard();
 })(window);

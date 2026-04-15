@@ -94,7 +94,17 @@
                     </div>
 
                     <div id="taskActionMsg" class="form-msg" aria-live="polite"></div>
-                    <div id="calendarGrid" class="calendar-grid" aria-label="월간 태스크 캘린더"></div>
+                    <div class="calendar-chart-shell">
+                        <div class="calendar-chart-head">
+                            <div>
+                                <strong>Monthly task trend</strong>
+                                <p>Each point shows how many assigned tasks are active on that day.</p>
+                            </div>
+                            <div id="calendarChartMeta" class="calendar-chart-meta">-</div>
+                        </div>
+                        <div id="calendarChart" class="calendar-chart" aria-label="monthly task trend"></div>
+                        <div id="calendarDayRail" class="calendar-day-rail" aria-label="monthly day selector"></div>
+                    </div>
                 </section>
 
                 <aside class="panel day-task-panel">

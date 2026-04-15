@@ -7,16 +7,15 @@
         currentUser: {},
         tasks: [],
         currentMonth: startOfMonth(new Date()),
-        currentWeekStart: startOfWeek(new Date()),
         selectedDate: toDateKey(new Date())
     };
-    var weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
     function byId(id) { return UX.byId(id); }
     function esc(value) { return UX.esc(value == null ? "" : String(value)); }
     function redirectToLogin() { global.location.href = "/"; }
     function pad(value) { return String(value).padStart(2, "0"); }
     function toDateKey(date) { return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()); }
+
     function parseDate(value) {
         var parts;
         if (!value) return null;
@@ -24,33 +23,31 @@
         if (parts.length !== 3) return null;
         return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     }
+
     function startOfMonth(date) { return new Date(date.getFullYear(), date.getMonth(), 1); }
-    function startOfWeek(date) {
-        var start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        start.setDate(start.getDate() - start.getDay());
-        return start;
-    }
     function addMonths(date, amount) { return new Date(date.getFullYear(), date.getMonth() + amount, 1); }
     function addDays(date, amount) {
         var result = new Date(date);
         result.setDate(result.getDate() + amount);
         return result;
     }
+
+    function endOfMonth(date) {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    }
+
     function formatMonth(date) { return date.getFullYear() + "." + pad(date.getMonth() + 1); }
+
     function formatDateLabel(dateKey) {
         var date = parseDate(dateKey);
         return date ? date.getFullYear() + "." + pad(date.getMonth() + 1) + "." + pad(date.getDate()) : "-";
     }
+
+    function formatDayLabel(date) {
+        return pad(date.getMonth() + 1) + "." + pad(date.getDate());
+    }
+
     function formatPeriod(startDate, dueDate) { return (startDate || "-") + " ~ " + (dueDate || "-"); }
-
-    function isMobileViewport() {
-        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
-    }
-
-    function formatWeekTitle(start) {
-        var end = addDays(start, 6);
-        return formatDateLabel(toDateKey(start)) + " - " + formatDateLabel(toDateKey(end));
-    }
 
     function setMessage(text, type) {
         var target = byId("taskActionMsg");
@@ -85,6 +82,39 @@
         });
     }
 
+    function getMonthDates(month) {
+        var first = startOfMonth(month);
+        var last = endOfMonth(month);
+        var dates = [];
+        var cursor = new Date(first);
+        while (cursor <= last) {
+            dates.push(new Date(cursor));
+            cursor = addDays(cursor, 1);
+        }
+        return dates;
+    }
+
+    function getMonthSeries() {
+        return getMonthDates(state.currentMonth).map(function (date) {
+            var dateKey = toDateKey(date);
+            var items = tasksForDate(dateKey);
+            return {
+                date: date,
+                dateKey: dateKey,
+                count: items.length,
+                items: items
+            };
+        });
+    }
+
+    function ensureSelectedDateInMonth() {
+        var month = state.currentMonth;
+        var selected = parseDate(state.selectedDate);
+        if (!selected || selected.getFullYear() !== month.getFullYear() || selected.getMonth() !== month.getMonth()) {
+            state.selectedDate = toDateKey(startOfMonth(month));
+        }
+    }
+
     function bindInfo(targetId, rows) {
         var target = byId(targetId);
         if (!target) return;
@@ -115,7 +145,7 @@
         if (!target) return;
         UX.setText(title, formatDateLabel(state.selectedDate) + " / 태스크 " + items.length);
         if (!items.length) {
-            target.innerHTML = "<div class=\"detail-empty\">태스크 없음</div>";
+            target.innerHTML = "<div class=\"detail-empty\">태스크가 없습니다.</div>";
             return;
         }
         target.innerHTML = items.map(function (task) {
@@ -124,7 +154,7 @@
                 + "<span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></div>"
                 + "<p>" + esc(task.project_name || "-") + "</p>"
                 + "<div class=\"day-task-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(task.priority || "-") + "</span></div>"
-                + "<button type=\"button\" class=\"btn open-task-manage\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">태스크</button>"
+                + "<button type=\"button\" class=\"btn open-task-manage\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">태스크 열기</button>"
                 + "</article>";
         }).join("");
         UX.qsa(".open-task-manage", target).forEach(function (button) {
@@ -138,70 +168,115 @@
         });
     }
 
-    function renderDayButton(date, month, todayKey) {
-        var dateKey = toDateKey(date);
-        var items = tasksForDate(dateKey);
-        var visibleItems = items.slice(0, 3);
-        return "<button type=\"button\" class=\"calendar-day"
-            + (date.getMonth() === month.getMonth() ? "" : " is-muted")
-            + (dateKey === state.selectedDate ? " is-selected" : "")
-            + (dateKey === todayKey ? " is-today" : "")
-            + "\" data-date=\"" + esc(dateKey) + "\">"
-            + "<span class=\"calendar-day-number\">" + esc(String(date.getDate())) + "</span>"
-            + "<span class=\"calendar-task-stack\">"
-            + visibleItems.map(function (task) {
-                return "<span class=\"calendar-task-pill status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_title || "-") + "</span>";
-            }).join("")
-            + (items.length > 3 ? "<span class=\"calendar-more\">+" + esc(String(items.length - 3)) + "</span>" : "")
-            + "</span></button>";
-    }
+    function renderMonthLineChart() {
+        var target = byId("calendarChart");
+        var rail = byId("calendarDayRail");
+        var meta = byId("calendarChartMeta");
+        var series = getMonthSeries();
+        var selectedIndex = 0;
+        var chartWidth = Math.max(680, series.length * 26);
+        var chartHeight = 320;
+        var padding = { top: 24, right: 24, bottom: 42, left: 44 };
+        var innerWidth = chartWidth - padding.left - padding.right;
+        var innerHeight = chartHeight - padding.top - padding.bottom;
+        var maxCount = Math.max.apply(null, series.map(function (entry) { return entry.count; }).concat([1]));
+        var points;
+        var xStep;
+        var polyline;
+        var selectedEntry;
+        var labels;
+        var grid;
 
-    function renderCalendar() {
-        var target = byId("calendarGrid");
-        var month = state.currentMonth;
-        var first = new Date(month.getFullYear(), month.getMonth(), 1);
-        var start = new Date(first);
-        var todayKey = toDateKey(new Date());
-        var cells = [];
-        var week;
-        var day;
-        var weekCount = isMobileViewport() ? 1 : 6;
-        if (!target) return;
-        start.setDate(start.getDate() - first.getDay());
-        if (isMobileViewport()) {
-            start = new Date(state.currentWeekStart);
-            UX.setText(byId("calendarTitle"), formatWeekTitle(start));
-            target.classList.add("is-week-mode");
-        } else {
-            UX.setText(byId("calendarTitle"), formatMonth(month));
-            target.classList.remove("is-week-mode");
-        }
-        weekdays.forEach(function (weekday) {
-            cells.push("<div class=\"calendar-weekday\">" + esc(weekday) + "</div>");
+        if (!target || !rail || !meta) return;
+
+        ensureSelectedDateInMonth();
+        selectedIndex = Math.max(0, series.findIndex(function (entry) { return entry.dateKey === state.selectedDate; }));
+        selectedEntry = series[selectedIndex] || series[0];
+        xStep = series.length > 1 ? innerWidth / (series.length - 1) : innerWidth;
+
+        points = series.map(function (entry, index) {
+            var x = padding.left + (xStep * index);
+            var y = padding.top + innerHeight - ((entry.count / maxCount) * innerHeight);
+            return {
+                x: x,
+                y: y,
+                count: entry.count,
+                dateKey: entry.dateKey,
+                label: formatDayLabel(entry.date)
+            };
         });
-        for (week = 0; week < weekCount; week++) {
-            cells.push("<section class=\"calendar-week\"><div class=\"calendar-week-label\">" + esc(String(week + 1)) + "</div>");
-            for (day = 0; day < 7; day++) {
-                (function () {
-                    var date = new Date(start);
-                    date.setDate(start.getDate() + (week * 7) + day);
-                    cells.push(renderDayButton(date, month, todayKey));
-                })();
-            }
-            cells.push("</section>");
+
+        polyline = points.map(function (point) {
+            return point.x.toFixed(2) + "," + point.y.toFixed(2);
+        }).join(" ");
+
+        grid = [];
+        for (var tick = 0; tick <= 4; tick++) {
+            var value = Math.round((maxCount / 4) * tick);
+            var y = padding.top + innerHeight - ((value / maxCount) * innerHeight);
+            grid.push("<line x1=\"" + padding.left + "\" y1=\"" + y.toFixed(2) + "\" x2=\"" + (chartWidth - padding.right) + "\" y2=\"" + y.toFixed(2) + "\" class=\"calendar-chart-grid-line\"></line>");
+            grid.push("<text x=\"" + (padding.left - 10) + "\" y=\"" + (y + 4).toFixed(2) + "\" class=\"calendar-chart-axis-text\" text-anchor=\"end\">" + esc(String(value)) + "</text>");
         }
-        target.innerHTML = cells.join("");
-        UX.qsa(".calendar-day", target).forEach(function (button) {
+
+        labels = points.filter(function (_, index) {
+            return index === 0 || index === points.length - 1 || index % 4 === 0;
+        }).map(function (point) {
+            return "<text x=\"" + point.x.toFixed(2) + "\" y=\"" + (chartHeight - 14) + "\" class=\"calendar-chart-axis-text\" text-anchor=\"middle\">" + esc(point.label) + "</text>";
+        }).join("");
+
+        target.innerHTML = "<div class=\"calendar-chart-scroll\">"
+            + "<svg viewBox=\"0 0 " + chartWidth + " " + chartHeight + "\" class=\"calendar-chart-svg\" role=\"img\" aria-label=\"monthly task trend chart\">"
+            + "<defs>"
+            + "<linearGradient id=\"calendarAreaFill\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">"
+            + "<stop offset=\"0%\" stop-color=\"#0f766e\" stop-opacity=\"0.28\"></stop>"
+            + "<stop offset=\"100%\" stop-color=\"#0f766e\" stop-opacity=\"0.02\"></stop>"
+            + "</linearGradient>"
+            + "</defs>"
+            + "<rect x=\"0\" y=\"0\" width=\"" + chartWidth + "\" height=\"" + chartHeight + "\" rx=\"20\" class=\"calendar-chart-bg\"></rect>"
+            + grid.join("")
+            + "<polygon points=\"" + padding.left + "," + (padding.top + innerHeight) + " " + polyline + " " + (padding.left + innerWidth) + "," + (padding.top + innerHeight) + "\" class=\"calendar-chart-area\"></polygon>"
+            + "<polyline points=\"" + polyline + "\" class=\"calendar-chart-line\"></polyline>"
+            + points.map(function (point) {
+                return "<g class=\"calendar-chart-point-group\">"
+                    + "<circle cx=\"" + point.x.toFixed(2) + "\" cy=\"" + point.y.toFixed(2) + "\" r=\"" + (point.dateKey === state.selectedDate ? 7 : 5) + "\" class=\"calendar-chart-point"
+                    + (point.dateKey === state.selectedDate ? " is-selected" : "")
+                    + "\" data-date=\"" + esc(point.dateKey) + "\"></circle>"
+                    + "</g>";
+            }).join("")
+            + labels
+            + "</svg></div>";
+
+        rail.innerHTML = series.map(function (entry) {
+            var count = entry.count;
+            return "<button type=\"button\" class=\"calendar-day-chip"
+                + (entry.dateKey === state.selectedDate ? " is-selected" : "")
+                + "\" data-date=\"" + esc(entry.dateKey) + "\">"
+                + "<span>" + esc(formatDayLabel(entry.date)) + "</span>"
+                + "<strong>" + esc(String(count)) + "</strong>"
+                + "</button>";
+        }).join("");
+
+        meta.innerHTML = "<strong>" + esc(formatDateLabel(selectedEntry.dateKey)) + "</strong><span>Active tasks " + esc(String(selectedEntry.count)) + "</span>";
+
+        UX.qsa(".calendar-chart-point", target).forEach(function (point) {
+            UX.bindOnce(point, "click", function () {
+                state.selectedDate = point.getAttribute("data-date");
+                renderSchedule();
+            });
+        });
+
+        UX.qsa(".calendar-day-chip", rail).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
                 state.selectedDate = button.getAttribute("data-date");
-                renderCalendar();
-                renderSelectedDateTasks();
+                renderSchedule();
             });
         });
     }
 
     function renderSchedule() {
-        renderCalendar();
+        ensureSelectedDateInMonth();
+        UX.setText(byId("calendarTitle"), formatMonth(state.currentMonth));
+        renderMonthLineChart();
         renderSelectedDateTasks();
     }
 
@@ -268,6 +343,10 @@
         });
     }
 
+    function isMobileViewport() {
+        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
+    }
+
     function setSidebarOpen(open) {
         var sidebar = byId("workspaceSidebar");
         var toggle = byId("btnSidebarToggle");
@@ -296,27 +375,18 @@
         UX.bindOnce(byId("btnReload"), "click", function () { loadContext().then(loadTasks); });
         UX.bindOnce(byId("btnLogout"), "click", logout);
         UX.bindOnce(byId("btnPrevMonth"), "click", function () {
-            if (isMobileViewport()) {
-                state.currentWeekStart = addDays(state.currentWeekStart, -7);
-                state.currentMonth = startOfMonth(state.currentWeekStart);
-            } else {
-                state.currentMonth = addMonths(state.currentMonth, -1);
-            }
+            state.currentMonth = addMonths(state.currentMonth, -1);
+            state.selectedDate = toDateKey(startOfMonth(state.currentMonth));
             renderSchedule();
         });
         UX.bindOnce(byId("btnNextMonth"), "click", function () {
-            if (isMobileViewport()) {
-                state.currentWeekStart = addDays(state.currentWeekStart, 7);
-                state.currentMonth = startOfMonth(state.currentWeekStart);
-            } else {
-                state.currentMonth = addMonths(state.currentMonth, 1);
-            }
+            state.currentMonth = addMonths(state.currentMonth, 1);
+            state.selectedDate = toDateKey(startOfMonth(state.currentMonth));
             renderSchedule();
         });
         UX.bindOnce(byId("btnToday"), "click", function () {
             var today = new Date();
             state.currentMonth = startOfMonth(today);
-            state.currentWeekStart = startOfWeek(today);
             state.selectedDate = toDateKey(today);
             renderSchedule();
         });

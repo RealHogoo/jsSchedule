@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>대시보드</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260412-2">
+    <link rel="stylesheet" href="/css/common.css?v=20260415-4">
 </head>
 <body class="schedule-page dashboard-page">
     <main class="workspace-shell">
@@ -17,7 +17,7 @@
                     </div>
                     <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
                 </div>
-                <p class="workspace-desc">프로젝트별 성과와 월별 흐름을 타입별 기준으로 확인합니다.</p>
+                <p class="workspace-desc">프로젝트 한 개를 선택해 유형별 핵심 기준과 운영 지표를 깊게 봅니다.</p>
             </div>
 
             <div id="sidebarCollapsible" class="sidebar-collapsible">
@@ -35,15 +35,15 @@
                     </section>
 
                     <section class="sidebar-section">
-                        <div class="section-label">요약</div>
+                        <div class="section-label">포트폴리오 요약</div>
                         <div id="summaryCards" class="summary-cards"></div>
                     </section>
                 </div>
 
                 <div class="sidebar-footer">
-                    <div class="sidebar-note">
-                        <strong>집계 기준</strong>
-                        <p>개발은 진행률과 실제기간, 블로그는 금액, 일반은 진행률과 태스크 수를 중심으로 집계합니다.</p>
+                    <div class="sidebar-note" id="typeGuide">
+                        <strong>핵심 데이터 기준</strong>
+                        <p>일반은 태스크 건수와 진행률, 개발은 지연 태스크 비율과 건수, 블로그는 업체 부담금과 추가 결제금을 중심으로 봅니다.</p>
                     </div>
 
                     <div class="btns sidebar-actions">
@@ -57,14 +57,14 @@
         <section class="workspace-main">
             <header class="workspace-hero panel">
                 <div>
-                    <div class="hero-kicker">대시보드</div>
-                    <h2 class="workspace-heading">프로젝트별 / 월별 집계</h2>
-                    <p class="workspace-copy">프로젝트 타입별로 다른 기준을 적용해 운영 현황을 나눠 봅니다.</p>
+                    <div class="hero-kicker">프로젝트 집중 보기</div>
+                    <h2 class="workspace-heading">단일 프로젝트 대시보드</h2>
+                    <p class="workspace-copy">비교형 목록 대신 선택한 프로젝트 하나만 대상으로 핵심 지표, 일정 흐름, 위험 신호를 한 화면에서 확인합니다.</p>
                 </div>
             </header>
 
             <section class="panel project-filter-panel">
-                <div class="project-filters dashboard-filters">
+                <div class="project-filters dashboard-project-filters">
                     <div class="form-item">
                         <label for="filterType">프로젝트 유형</label>
                         <select id="filterType" class="input">
@@ -74,82 +74,81 @@
                             <option value="BLOG">블로그</option>
                         </select>
                     </div>
+                    <div class="form-item">
+                        <label for="filterProject">프로젝트 선택</label>
+                        <select id="filterProject" class="input"></select>
+                    </div>
                     <div class="btns filter-actions">
-                        <button type="button" id="btnSearch" class="btn btn-primary">조회</button>
+                        <button type="button" id="btnSearch" class="btn btn-primary">적용</button>
                         <button type="button" id="btnReset" class="btn">초기화</button>
                     </div>
                 </div>
             </section>
 
-            <section class="panel dashboard-tabs-panel">
-                <div class="dashboard-toolbar">
-                    <div class="dashboard-tab-bar" role="tablist" aria-label="dashboard views">
-                        <button type="button" id="tabProjectStats" class="dashboard-tab is-active" role="tab" aria-selected="true" aria-controls="dashboardProjectView">프로젝트별 보기</button>
-                        <button type="button" id="tabMonthlyStats" class="dashboard-tab" role="tab" aria-selected="false" aria-controls="dashboardMonthlyView">월별 보기</button>
+            <section class="dashboard-focus-layout">
+                <section class="panel dashboard-project-hero" id="projectHero"></section>
+                <section class="dashboard-insight-grid">
+                    <div class="panel dashboard-metric-panel">
+                        <div class="panel-title">핵심 지표</div>
+                        <div id="projectMetricCards" class="dashboard-metric-cards"></div>
                     </div>
-                    <div class="dashboard-view-toggle" role="tablist" aria-label="dashboard mode">
-                        <button type="button" id="btnChartView" class="dashboard-view-btn is-active" role="tab" aria-selected="true">차트로 보기</button>
-                        <button type="button" id="btnTableView" class="dashboard-view-btn" role="tab" aria-selected="false">표로 보기</button>
-                    </div>
-                </div>
 
-                <section id="dashboardProjectView" class="panel dashboard-panel dashboard-tab-panel is-active" role="tabpanel" aria-labelledby="tabProjectStats">
-                    <div class="table-head">
-                        <div>
-                            <div class="panel-title">프로젝트별</div>
-                            <p class="table-copy">유형별 기준에 맞는 대표 지표를 프로젝트 단위로 봅니다.</p>
+                    <div class="panel dashboard-chart-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title" id="statusPanelTitle">상태 분포</div>
+                                <p class="table-copy" id="statusPanelCopy">현재 태스크 상태 구성을 확인합니다.</p>
+                            </div>
                         </div>
+                        <div id="statusChart" class="dashboard-visual-shell"></div>
                     </div>
-                    <div id="projectChartStats" class="dashboard-card-list dashboard-view-panel is-active"></div>
-                    <div id="projectTableWrap" class="table-wrap dashboard-view-panel" hidden>
-                        <table class="data-table dashboard-project-table">
-                            <thead>
-                                <tr>
-                                    <th>프로젝트</th>
-                                    <th>유형</th>
-                                    <th>핵심 지표</th>
-                                    <th>보조 지표</th>
-                                    <th>태스크</th>
-                                    <th>기간</th>
-                                </tr>
-                            </thead>
-                            <tbody id="projectStatsTable"></tbody>
-                        </table>
-                    </div>
-                </section>
 
-                <section id="dashboardMonthlyView" class="panel dashboard-panel dashboard-tab-panel" role="tabpanel" aria-labelledby="tabMonthlyStats" hidden>
-                    <div class="table-head">
-                        <div>
-                            <div class="panel-title">월별</div>
-                            <p class="table-copy">개발은 실제 종료일 우선, 블로그와 일반은 마감일 기준입니다.</p>
+                    <div class="panel dashboard-chart-panel dashboard-wide-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title" id="monthlyPanelTitle">월별 태스크 흐름</div>
+                                <p class="table-copy" id="monthlyPanelCopy">유형별 기준일을 적용한 월 단위 태스크 흐름 차트입니다.</p>
+                            </div>
                         </div>
+                        <div id="monthlyTrendChart" class="dashboard-visual-shell"></div>
                     </div>
-                    <div id="monthlyChartStats" class="dashboard-month-chart dashboard-view-panel is-active"></div>
-                    <div id="monthlyTableWrap" class="table-wrap dashboard-view-panel" hidden>
-                        <table class="data-table dashboard-month-table">
-                            <thead>
-                                <tr>
-                                    <th>월</th>
-                                    <th>유형</th>
-                                    <th>태스크</th>
-                                    <th>핵심 지표</th>
-                                    <th>보조 지표</th>
-                                </tr>
-                            </thead>
-                            <tbody id="monthlyStats">
-                                <tr>
-                                    <td colspan="5" class="empty-row">데이터를 불러오는 중입니다.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                    <div class="panel dashboard-chart-panel dashboard-wide-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title">태스크 일정 타임라인</div>
+                                <p class="table-copy">우선순위가 높은 태스크의 시작일과 마감일 범위를 보여줍니다.</p>
+                            </div>
+                        </div>
+                        <div id="timelineChart" class="dashboard-visual-shell"></div>
+                    </div>
+
+                    <div class="panel dashboard-chart-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title">위험 신호</div>
+                                <p class="table-copy">지연 또는 보류 상태 태스크를 우선 확인합니다.</p>
+                            </div>
+                        </div>
+                        <div id="riskList" class="dashboard-watch-list"></div>
+                    </div>
+
+                    <div class="panel dashboard-chart-panel">
+                        <div class="table-head">
+                            <div>
+                                <div class="panel-title">최근 작업 보드</div>
+                                <p class="table-copy">최근 업데이트 또는 마감이 가까운 태스크를 간단히 봅니다.</p>
+                            </div>
+                        </div>
+                        <div id="taskBoard" class="dashboard-watch-list"></div>
                     </div>
                 </section>
             </section>
         </section>
     </main>
 
-    <script src="/js/ux.js"></script>
-    <script src="/js/dashboard.js?v=20260412-3"></script>
+    <script src="/js/ux.js?v=20260411-2"></script>
+    <script src="/js/vendor/echarts.min.js"></script>
+    <script src="/js/dashboard.js?v=20260415-9"></script>
 </body>
 </html>

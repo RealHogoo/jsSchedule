@@ -311,7 +311,7 @@
             var iconClass = depth > 0 ? "task-tree-icon is-child" : "task-tree-icon is-root";
             var typeCode = projectTypeCode();
             var summaryValue = typeCode === "BLOG"
-                ? "지원 " + esc(task.support_amount != null ? task.support_amount : "0")
+                ? "업체 부담금 " + esc(task.support_amount != null ? task.support_amount : "0")
                 : "진행률 " + esc(formatProgress(task.progress_rate));
 
             rows.push("<article class=\"task-card" + (selected ? " is-expanded" : "") + "\" data-task-id=\"" + esc(taskId) + "\">"
@@ -474,8 +474,8 @@
         if (message.indexOf("actual_start_date") >= 0 || message.indexOf("실제 시작일") >= 0) return "taskActualStartDate";
         if (message.indexOf("actual_end_date") >= 0 || message.indexOf("실제 종료일") >= 0) return "taskActualEndDate";
         if (message.indexOf("task_url") >= 0 || message.indexOf("주소") >= 0) return "taskUrl";
-        if (message.indexOf("support_amount") >= 0 || message.indexOf("지원금액") >= 0) return "taskSupportAmount";
-        if (message.indexOf("actual_amount") >= 0 || message.indexOf("사용금액") >= 0) return "taskActualAmount";
+        if (message.indexOf("support_amount") >= 0 || message.indexOf("지원금액") >= 0 || message.indexOf("예산") >= 0 || message.indexOf("업체 부담금") >= 0) return "taskSupportAmount";
+        if (message.indexOf("actual_amount") >= 0 || message.indexOf("사용금액") >= 0 || message.indexOf("집행액") >= 0 || message.indexOf("추가 결제금") >= 0) return "taskActualAmount";
         if (message.indexOf("project") >= 0 || message.indexOf("프로젝트") >= 0) return "taskProjectName";
         if (message.indexOf("parent_task") >= 0 || message.indexOf("상위 태스크") >= 0) return "taskParentTaskId";
         if (message.indexOf("4 levels") >= 0 || message.indexOf("4레벨") >= 0) return "taskParentTaskId";

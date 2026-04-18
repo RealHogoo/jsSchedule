@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.task.service;
 
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiException;
+import com.realhogoo.jsschedule.integration.kakao.KakaoMapClient;
 import com.realhogoo.jsschedule.task.mapper.TaskMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,9 +32,11 @@ public class TaskServiceImpl implements TaskService {
     );
 
     private final TaskMapper taskMapper;
+    private final KakaoMapClient kakaoMapClient;
 
-    public TaskServiceImpl(TaskMapper taskMapper) {
+    public TaskServiceImpl(TaskMapper taskMapper, KakaoMapClient kakaoMapClient) {
         this.taskMapper = taskMapper;
+        this.kakaoMapClient = kakaoMapClient;
     }
 
     @Override
@@ -130,6 +133,65 @@ public class TaskServiceImpl implements TaskService {
         }
 
         return getTaskDetail(Collections.<String, Object>singletonMap("task_id", taskId), viewerUserId, viewerRoles);
+    }
+
+    @Override
+    public Map<String, Object> getBlogRouteInfo(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> request = params == null ? Collections.<String, Object>emptyMap() : params;
+        Long projectId = asLong(request.get("project_id"), "project_id");
+        String destinationAddress = optionalText(request.get("destination_address"));
+        Map<String, Object> response = new LinkedHashMap<String, Object>();
+        Map<String, Object> project;
+        String originAddress;
+
+        response.put("available", false);
+        response.put("message", "");
+
+        if (projectId == null) {
+            response.put("message", "project_id is required");
+            return response;
+        }
+        if (destinationAddress == null) {
+            response.put("message", "destination_address is required");
+            return response;
+        }
+
+        project = taskMapper.selectProjectReference(Collections.<String, Object>singletonMap("project_id", projectId));
+        if (project == null || project.isEmpty()) {
+            response.put("message", "project not found");
+            return response;
+        }
+
+        originAddress = normalizeRouteAddress(optionalText(project.get("origin_address")));
+        destinationAddress = normalizeRouteAddress(destinationAddress);
+        response.put("origin_address", originAddress);
+        response.put("destination_address", destinationAddress);
+        if (originAddress == null) {
+            response.put("message", "project origin address is required");
+            return response;
+        }
+        if (!kakaoMapClient.isConfigured()) {
+            response.put("message", "kakao rest api key is not configured");
+            return response;
+        }
+
+        try {
+            response.putAll(kakaoMapClient.resolveRoute(originAddress, destinationAddress));
+            response.put("origin_address", originAddress);
+            response.put("destination_address", destinationAddress);
+        } catch (RuntimeException exception) {
+            response.put("available", false);
+            response.put("message", exception.getMessage() == null ? "route lookup failed" : exception.getMessage());
+        }
+        return response;
+    }
+
+    private String normalizeRouteAddress(String address) {
+        if (address == null) {
+            return null;
+        }
+        String normalized = address.replaceAll("\\s*\\([^)]*\\)\\s*$", "").trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private void validateTaskFields(

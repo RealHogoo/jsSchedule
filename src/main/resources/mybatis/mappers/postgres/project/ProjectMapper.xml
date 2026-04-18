@@ -12,6 +12,7 @@
             p.start_date,
             p.end_date,
             p.owner_user_id,
+            p.origin_address,
             COUNT(DISTINCT t.task_id) AS task_count,
             COUNT(DISTINCT m.milestone_id) AS milestone_count
         FROM schedule_project p
@@ -51,6 +52,7 @@
             p.project_type_code,
             p.project_status,
             p.owner_user_id,
+            p.origin_address,
             p.start_date,
             p.end_date,
             p.description,
@@ -71,6 +73,7 @@
             p.project_type_code,
             p.project_status,
             p.owner_user_id,
+            p.origin_address,
             p.start_date,
             p.end_date,
             p.description,
@@ -94,6 +97,7 @@
             project_type_code,
             project_status,
             owner_user_id,
+            origin_address,
             start_date,
             end_date,
             description
@@ -103,6 +107,7 @@
             #{project_type_code},
             #{project_status},
             #{owner_user_id},
+            #{origin_address},
             CAST(#{start_date} AS DATE),
             CAST(#{end_date} AS DATE),
             #{description}
@@ -117,6 +122,7 @@
             project_type_code = #{project_type_code},
             project_status = #{project_status},
             owner_user_id = #{owner_user_id},
+            origin_address = #{origin_address},
             start_date = CAST(#{start_date} AS DATE),
             end_date = CAST(#{end_date} AS DATE),
             description = #{description},

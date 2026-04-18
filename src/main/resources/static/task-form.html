@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>태스크</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260410-4">
+    <link rel="stylesheet" href="/css/common.css?v=20260415-map-1">
 </head>
 <body class="schedule-page task-page-compact">
     <main class="workspace-shell">
@@ -78,7 +78,7 @@
                         <div class="table-head inline-workspace-head">
                             <div>
                                 <div id="taskWorkspaceTitle" class="panel-title">프로젝트 태스크 목록</div>
-                                <p id="taskWorkspaceSubtitle" class="compact-head-note">카드 단위로 태스크를 확인하고 상세를 펼쳐 수정할 수 있습니다.</p>
+                                <p id="taskWorkspaceSubtitle" class="compact-head-note">카드 단위로 태스크를 확인하고 상세를 바로 수정할 수 있습니다.</p>
                             </div>
                             <div class="btns">
                                 <button type="button" id="btnBackToTaskListInline" class="btn" hidden>목록</button>
@@ -122,7 +122,7 @@
                                     <select id="taskParentTaskId" class="input">
                                         <option value="">상위 태스크 없음</option>
                                     </select>
-                                    <small class="field-hint">루트 포함 최대 4레벨까지만 등록할 수 있습니다.</small>
+                                    <small class="field-hint">루트 포함 최대 4단계까지만 등록할 수 있습니다.</small>
                                 </div>
 
                                 <div class="detail-form-grid">
@@ -171,9 +171,25 @@
                                 </div>
 
                                 <div id="taskBlogFieldSection" class="detail-form-grid" hidden>
-                                    <div class="form-item">
-                                        <label for="taskUrl">주소(도로명주소)</label>
-                                        <input id="taskUrl" class="input" type="text" placeholder="도로명주소를 입력하세요">
+                                    <div class="form-item blog-address-item">
+                                        <label for="taskUrl">방문 주소</label>
+                                        <div class="picker-row">
+                                            <input id="taskUrl" class="input" type="text" placeholder="방문 주소를 입력하세요">
+                                            <button type="button" id="btnSearchTaskAddress" class="btn">주소 검색</button>
+                                        </div>
+                                        <div id="blogRouteSummary" class="blog-route-summary" hidden>
+                                            <div class="blog-route-copy">
+                                                <strong id="blogRouteSummaryTitle">이동 정보</strong>
+                                                <p id="blogRouteSummaryText">방문 주소를 입력하면 이동 시간과 거리를 계산합니다.</p>
+                                            </div>
+                                            <div class="blog-route-actions">
+                                                <div id="blogRouteMetrics" class="blog-route-metrics" hidden>
+                                                    <span id="blogRouteDuration">-</span>
+                                                    <span id="blogRouteDistance">-</span>
+                                                </div>
+                                                <button type="button" id="btnOpenBlogMap" class="btn blog-route-more" hidden>더보기</button>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="form-item">
@@ -238,7 +254,41 @@
         </div>
     </div>
 
-    <script src="/js/ux.js?v=20260410-4"></script>
-    <script src="/js/task-form.js?v=20260410-4"></script>
+    <div id="blogMapModal" class="modal-backdrop" hidden>
+        <div class="modal-panel map-modal-panel">
+            <div class="detail-head">
+                <div>
+                    <div class="panel-title">방문 지도</div>
+                    <p id="blogMapMeta" class="table-copy">프로젝트 기본 출발지와 방문 주소 기준 이동 정보입니다.</p>
+                </div>
+                <button type="button" id="btnCloseBlogMapModal" class="btn">닫기</button>
+            </div>
+
+            <div id="blogMapSummary" class="blog-map-summary" hidden>
+                <div class="blog-map-summary-card">
+                    <span class="blog-map-summary-label">출발지</span>
+                    <strong id="blogMapOrigin">-</strong>
+                </div>
+                <div class="blog-map-summary-card">
+                    <span class="blog-map-summary-label">방문지</span>
+                    <strong id="blogMapDestination">-</strong>
+                </div>
+                <div class="blog-map-summary-card is-metric">
+                    <span class="blog-map-summary-label">예상 시간</span>
+                    <strong id="blogMapDuration">-</strong>
+                </div>
+                <div class="blog-map-summary-card is-metric">
+                    <span class="blog-map-summary-label">이동 거리</span>
+                    <strong id="blogMapDistance">-</strong>
+                </div>
+            </div>
+            <div id="blogMapCanvas" class="blog-map-canvas"></div>
+            <div id="blogMapEmpty" class="detail-empty" hidden>지도를 표시할 수 없습니다.</div>
+        </div>
+    </div>
+
+    <script src="/js/ux.js?v=20260415-map-1"></script>
+    <script src="/js/address-search.js?v=20260417-juso-1"></script>
+    <script src="/js/task-form.js?v=20260417-juso-1"></script>
 </body>
 </html>

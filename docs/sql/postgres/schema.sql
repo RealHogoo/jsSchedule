@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS schedule_project (
     project_name VARCHAR(200) NOT NULL,
     project_status VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
     owner_user_id VARCHAR(100) NOT NULL,
+    origin_address VARCHAR(500),
     start_date DATE,
     end_date DATE,
     description TEXT,

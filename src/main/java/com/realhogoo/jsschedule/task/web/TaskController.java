@@ -35,6 +35,11 @@ public class TaskController {
         return ApiResponse.ok(taskService.saveTask(body, viewerUserId(request), viewerRoles(request)), request);
     }
 
+    @PostMapping("/task/blog-route.json")
+    public ApiResponse<Object> blogRoute(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        return ApiResponse.ok(taskService.getBlogRouteInfo(body, viewerUserId(request), viewerRoles(request)), request);
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> viewerRoles(HttpServletRequest request) {
         Object rolesAttr = request.getAttribute("roles");

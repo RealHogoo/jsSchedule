@@ -1,6 +1,9 @@
 ALTER TABLE schedule_project
     ADD COLUMN IF NOT EXISTS project_type_code VARCHAR(50);
 
+ALTER TABLE schedule_project
+    ADD COLUMN IF NOT EXISTS origin_address VARCHAR(500);
+
 UPDATE schedule_project
 SET project_type_code = COALESCE(project_type_code, 'GENERAL')
 WHERE project_type_code IS NULL;

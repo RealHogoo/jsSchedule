@@ -68,6 +68,7 @@ public class ProjectServiceImpl implements ProjectService {
         String ownerUserId = requiredText(params.get("owner_user_id"), "owner_user_id is required");
         String projectTypeCode = normalizeProjectType(params.get("project_type_code"));
         String projectStatus = normalizeStatus(params.get("project_status"));
+        String originAddress = optionalText(params.get("origin_address"));
         String description = optionalText(params.get("description"));
         String startDate = optionalDate(params.get("start_date"), "start_date");
         String endDate = optionalDate(params.get("end_date"), "end_date");
@@ -81,6 +82,7 @@ public class ProjectServiceImpl implements ProjectService {
         payload.put("project_type_code", projectTypeCode);
         payload.put("project_status", projectStatus);
         payload.put("owner_user_id", ownerUserId);
+        payload.put("origin_address", originAddress);
         payload.put("start_date", startDate);
         payload.put("end_date", endDate);
         payload.put("description", description);

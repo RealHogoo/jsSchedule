@@ -9,6 +9,7 @@ import java.util.Map;
 public interface NodeMapper {
     Map<String, Object> selectTaskContext(Map<String, Object> params);
     List<Map<String, Object>> selectNodeTreeRows(Map<String, Object> params);
+    List<Map<String, Object>> selectNodeMetricRows(Map<String, Object> params);
     Map<String, Object> selectNodeDetail(Map<String, Object> params);
     List<Map<String, Object>> selectNodeMetrics(Long nodeId);
     Map<String, Object> selectNodeSummary(Long nodeId);

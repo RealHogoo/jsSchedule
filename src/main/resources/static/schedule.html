@@ -17,7 +17,6 @@
                     </div>
                     <button type="button" id="btnSidebarToggle" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebarCollapsible">메뉴</button>
                 </div>
-                <p class="workspace-desc">내가 맡은 태스크만 모아서 보는 개인 일정 화면입니다.</p>
             </div>
 
             <div id="sidebarCollapsible" class="sidebar-collapsible">
@@ -50,11 +49,25 @@
         </aside>
 
         <section class="workspace-main">
-            <header class="workspace-hero panel">
+            <header class="workspace-hero panel workspace-hero-with-help">
                 <div>
                     <div class="hero-kicker">일정</div>
                     <h2 class="workspace-heading">내 태스크 일정 관리</h2>
-                    <p class="workspace-copy">로그인한 사용자의 담당 태스크만 보여주고, 프로젝트 관리 화면으로 바로 이동할 수 있습니다.</p>
+                </div>
+                <div class="workspace-help-actions">
+                    <details class="page-help page-help-static">
+                        <summary><span class="page-help-toggle">?</span></summary>
+                        <div class="page-help-body">
+                            <div class="page-help-section">
+                                <strong>화면 설명</strong>
+                                <p>내가 맡은 태스크만 모아서 보는 개인 일정 화면입니다.</p>
+                            </div>
+                            <div class="page-help-section">
+                                <strong>기능 설명</strong>
+                                <p>로그인한 사용자의 담당 태스크만 보여주고, 프로젝트 관리 화면으로 바로 이동할 수 있습니다.</p>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </header>
 
@@ -69,10 +82,10 @@
                         <label for="filterStatus">상태</label>
                         <select id="filterStatus" class="input">
                             <option value="">전체</option>
-                            <option value="TODO">TODO</option>
-                            <option value="IN_PROGRESS">IN_PROGRESS</option>
-                            <option value="DONE">DONE</option>
-                            <option value="HOLD">HOLD</option>
+                            <option value="TODO">할 일</option>
+                            <option value="IN_PROGRESS">진행 중</option>
+                            <option value="DONE">완료</option>
+                            <option value="HOLD">보류</option>
                         </select>
                     </div>
                     <div class="btns filter-actions">

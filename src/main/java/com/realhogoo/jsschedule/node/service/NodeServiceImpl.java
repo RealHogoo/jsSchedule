@@ -39,13 +39,26 @@ public class NodeServiceImpl implements NodeService {
 
         Map<String, Object> task = loadTaskContext(taskId, viewerUserId, viewerRoles);
         List<Map<String, Object>> rows = nodeMapper.selectNodeTreeRows(accessParams(taskId, viewerUserId, viewerRoles));
+        List<Map<String, Object>> metricRows = nodeMapper.selectNodeMetricRows(accessParams(taskId, viewerUserId, viewerRoles));
         Map<Long, Map<String, Object>> indexed = new LinkedHashMap<Long, Map<String, Object>>();
         List<Map<String, Object>> roots = new ArrayList<Map<String, Object>>();
 
         for (Map<String, Object> row : rows) {
             Map<String, Object> node = new LinkedHashMap<String, Object>(row);
             node.put("children", new ArrayList<Map<String, Object>>());
+            node.put("metrics", new ArrayList<Map<String, Object>>());
             indexed.put(asLong(node.get("node_id"), "node_id"), node);
+        }
+
+        for (Map<String, Object> metricRow : metricRows) {
+            Long nodeId = asLong(metricRow.get("node_id"), "node_id");
+            Map<String, Object> node = indexed.get(nodeId);
+            if (node == null) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> metrics = (List<Map<String, Object>>) node.get("metrics");
+            metrics.add(new LinkedHashMap<String, Object>(metricRow));
         }
 
         for (Map<String, Object> node : indexed.values()) {

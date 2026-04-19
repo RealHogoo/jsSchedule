@@ -46,6 +46,19 @@
     function formatDayLabel(date) {
         return pad(date.getMonth() + 1) + "." + pad(date.getDate());
     }
+    function taskStatusLabel(value) {
+        var status = String(value || "TODO").toUpperCase();
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "할 일";
+    }
+    function priorityLabel(value) {
+        var priority = String(value || "MEDIUM").toUpperCase();
+        if (priority === "HIGH") return "높음";
+        if (priority === "LOW") return "낮음";
+        return "보통";
+    }
 
     function formatPeriod(startDate, dueDate) { return (startDate || "-") + " ~ " + (dueDate || "-"); }
 
@@ -79,6 +92,24 @@
             return taskContainsDate(task, dateKey);
         }).sort(function (a, b) {
             return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31"));
+        });
+    }
+
+    function summarizeTaskStatuses(items) {
+        return items.reduce(function (summary, task) {
+            var status = String(task.task_status || "TODO").toUpperCase();
+            if (status === "DONE") {
+                summary.done += 1;
+            } else if (status === "IN_PROGRESS") {
+                summary.inProgress += 1;
+            } else {
+                summary.pending += 1;
+            }
+            return summary;
+        }, {
+            done: 0,
+            inProgress: 0,
+            pending: 0
         });
     }
 
@@ -151,9 +182,9 @@
         target.innerHTML = items.map(function (task) {
             return "<article class=\"day-task-card\">"
                 + "<div class=\"day-task-head\"><strong>" + esc(task.task_title || "-") + "</strong>"
-                + "<span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></div>"
+                + "<span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(taskStatusLabel(task.task_status)) + "</span></div>"
                 + "<p>" + esc(task.project_name || "-") + "</p>"
-                + "<div class=\"day-task-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(task.priority || "-") + "</span></div>"
+                + "<div class=\"day-task-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(priorityLabel(task.priority)) + "</span></div>"
                 + "<button type=\"button\" class=\"btn open-task-manage\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">태스크 열기</button>"
                 + "</article>";
         }).join("");
@@ -169,101 +200,25 @@
     }
 
     function renderMonthLineChart() {
-        var target = byId("calendarChart");
         var rail = byId("calendarDayRail");
-        var meta = byId("calendarChartMeta");
         var series = getMonthSeries();
-        var selectedIndex = 0;
-        var chartWidth = Math.max(680, series.length * 26);
-        var chartHeight = 320;
-        var padding = { top: 24, right: 24, bottom: 42, left: 44 };
-        var innerWidth = chartWidth - padding.left - padding.right;
-        var innerHeight = chartHeight - padding.top - padding.bottom;
-        var maxCount = Math.max.apply(null, series.map(function (entry) { return entry.count; }).concat([1]));
-        var points;
-        var xStep;
-        var polyline;
-        var selectedEntry;
-        var labels;
-        var grid;
 
-        if (!target || !rail || !meta) return;
+        if (!rail) return;
 
         ensureSelectedDateInMonth();
-        selectedIndex = Math.max(0, series.findIndex(function (entry) { return entry.dateKey === state.selectedDate; }));
-        selectedEntry = series[selectedIndex] || series[0];
-        xStep = series.length > 1 ? innerWidth / (series.length - 1) : innerWidth;
-
-        points = series.map(function (entry, index) {
-            var x = padding.left + (xStep * index);
-            var y = padding.top + innerHeight - ((entry.count / maxCount) * innerHeight);
-            return {
-                x: x,
-                y: y,
-                count: entry.count,
-                dateKey: entry.dateKey,
-                label: formatDayLabel(entry.date)
-            };
-        });
-
-        polyline = points.map(function (point) {
-            return point.x.toFixed(2) + "," + point.y.toFixed(2);
-        }).join(" ");
-
-        grid = [];
-        for (var tick = 0; tick <= 4; tick++) {
-            var value = Math.round((maxCount / 4) * tick);
-            var y = padding.top + innerHeight - ((value / maxCount) * innerHeight);
-            grid.push("<line x1=\"" + padding.left + "\" y1=\"" + y.toFixed(2) + "\" x2=\"" + (chartWidth - padding.right) + "\" y2=\"" + y.toFixed(2) + "\" class=\"calendar-chart-grid-line\"></line>");
-            grid.push("<text x=\"" + (padding.left - 10) + "\" y=\"" + (y + 4).toFixed(2) + "\" class=\"calendar-chart-axis-text\" text-anchor=\"end\">" + esc(String(value)) + "</text>");
-        }
-
-        labels = points.filter(function (_, index) {
-            return index === 0 || index === points.length - 1 || index % 4 === 0;
-        }).map(function (point) {
-            return "<text x=\"" + point.x.toFixed(2) + "\" y=\"" + (chartHeight - 14) + "\" class=\"calendar-chart-axis-text\" text-anchor=\"middle\">" + esc(point.label) + "</text>";
-        }).join("");
-
-        target.innerHTML = "<div class=\"calendar-chart-scroll\">"
-            + "<svg viewBox=\"0 0 " + chartWidth + " " + chartHeight + "\" class=\"calendar-chart-svg\" role=\"img\" aria-label=\"monthly task trend chart\">"
-            + "<defs>"
-            + "<linearGradient id=\"calendarAreaFill\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">"
-            + "<stop offset=\"0%\" stop-color=\"#0f766e\" stop-opacity=\"0.28\"></stop>"
-            + "<stop offset=\"100%\" stop-color=\"#0f766e\" stop-opacity=\"0.02\"></stop>"
-            + "</linearGradient>"
-            + "</defs>"
-            + "<rect x=\"0\" y=\"0\" width=\"" + chartWidth + "\" height=\"" + chartHeight + "\" rx=\"20\" class=\"calendar-chart-bg\"></rect>"
-            + grid.join("")
-            + "<polygon points=\"" + padding.left + "," + (padding.top + innerHeight) + " " + polyline + " " + (padding.left + innerWidth) + "," + (padding.top + innerHeight) + "\" class=\"calendar-chart-area\"></polygon>"
-            + "<polyline points=\"" + polyline + "\" class=\"calendar-chart-line\"></polyline>"
-            + points.map(function (point) {
-                return "<g class=\"calendar-chart-point-group\">"
-                    + "<circle cx=\"" + point.x.toFixed(2) + "\" cy=\"" + point.y.toFixed(2) + "\" r=\"" + (point.dateKey === state.selectedDate ? 7 : 5) + "\" class=\"calendar-chart-point"
-                    + (point.dateKey === state.selectedDate ? " is-selected" : "")
-                    + "\" data-date=\"" + esc(point.dateKey) + "\"></circle>"
-                    + "</g>";
-            }).join("")
-            + labels
-            + "</svg></div>";
-
         rail.innerHTML = series.map(function (entry) {
-            var count = entry.count;
+            var summary = summarizeTaskStatuses(entry.items);
             return "<button type=\"button\" class=\"calendar-day-chip"
                 + (entry.dateKey === state.selectedDate ? " is-selected" : "")
                 + "\" data-date=\"" + esc(entry.dateKey) + "\">"
-                + "<span>" + esc(formatDayLabel(entry.date)) + "</span>"
-                + "<strong>" + esc(String(count)) + "</strong>"
+                + "<span class=\"calendar-day-chip-date\">" + esc(formatDayLabel(entry.date)) + "</span>"
+                + "<div class=\"calendar-day-chip-stats\">"
+                + "<span class=\"calendar-day-stat is-done\">완료 " + esc(String(summary.done)) + "</span>"
+                + "<span class=\"calendar-day-stat is-progress\">진행중 " + esc(String(summary.inProgress)) + "</span>"
+                + "<span class=\"calendar-day-stat is-pending\">대기 " + esc(String(summary.pending)) + "</span>"
+                + "</div>"
                 + "</button>";
         }).join("");
-
-        meta.innerHTML = "<strong>" + esc(formatDateLabel(selectedEntry.dateKey)) + "</strong><span>Active tasks " + esc(String(selectedEntry.count)) + "</span>";
-
-        UX.qsa(".calendar-chart-point", target).forEach(function (point) {
-            UX.bindOnce(point, "click", function () {
-                state.selectedDate = point.getAttribute("data-date");
-                renderSchedule();
-            });
-        });
 
         UX.qsa(".calendar-day-chip", rail).forEach(function (button) {
             UX.bindOnce(button, "click", function () {

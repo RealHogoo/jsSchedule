@@ -29,6 +29,31 @@
     function formatPeriod(startDate, dueDate) {
         return (startDate || "-") + " ~ " + (dueDate || "-");
     }
+    function taskStatusLabel(value) {
+        var status = String(value || "TODO").toUpperCase();
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "할 일";
+    }
+    function priorityLabel(value) {
+        var priority = String(value || "MEDIUM").toUpperCase();
+        if (priority === "HIGH") return "높음";
+        if (priority === "LOW") return "낮음";
+        return "보통";
+    }
+    function roleLabel(value) {
+        var role = String(value || "").toUpperCase();
+        if (role === "ROLE_ADMIN") return "관리자";
+        if (role === "ROLE_USER") return "일반 사용자";
+        if (role === "ADMIN") return "관리자";
+        if (role === "USER") return "일반 사용자";
+        return value || "-";
+    }
+    function formatRoles(values) {
+        if (!Array.isArray(values) || !values.length) return "-";
+        return values.map(roleLabel).join(", ");
+    }
 
     function bindInfo(targetId, rows) {
         var target = byId(targetId);
@@ -94,8 +119,8 @@
             return "<tr>"
                 + "<td><div class=\"row-link\"><span class=\"row-title\">" + esc(task.project_name || "-") + "</span><span class=\"row-sub\">" + esc(task.project_id || "-") + "</span></div></td>"
                 + "<td><div class=\"row-link\"><span class=\"row-title\">" + esc(task.task_title || "-") + "</span><span class=\"row-sub\">" + esc(task.assignee_user_id || "-") + "</span></div></td>"
-                + "<td><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></td>"
-                + "<td><span class=\"status-chip priority-" + esc(String(task.priority || "").toLowerCase()) + "\">" + esc(task.priority || "-") + "</span></td>"
+                + "<td><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(taskStatusLabel(task.task_status)) + "</span></td>"
+                + "<td><span class=\"status-chip priority-" + esc(String(task.priority || "").toLowerCase()) + "\">" + esc(priorityLabel(task.priority)) + "</span></td>"
                 + "<td>" + esc(formatPeriod(task.start_date, task.due_date)) + "</td>"
                 + "<td><button type=\"button\" class=\"btn open-task-manage\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">태스크 관리</button></td>"
                 + "</tr>";
@@ -156,7 +181,7 @@
             bindInfo("currentUser", [
                 { label: "아이디", value: state.currentUser.user_id || "-" },
                 { label: "이름", value: state.currentUser.user_nm || "-" },
-                { label: "권한", value: (state.currentUser.roles || []).join(", ") || "-" }
+                { label: "권한", value: formatRoles(state.currentUser.roles) }
             ]);
 
             renderSummary((dashboard.data && dashboard.data.summary) || {});

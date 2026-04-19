@@ -177,6 +177,134 @@
         }
     }
 
+    function normalizeHelpTitle(value) {
+        var text = normalizeText(value, "");
+        if (!text) return "참고";
+        if (text === "Workspace note") return "참고";
+        return text;
+    }
+
+    function createHelpDetails(sections) {
+        var details = document.createElement("details");
+        var summary = document.createElement("summary");
+        var toggle = document.createElement("span");
+        var body = document.createElement("div");
+
+        details.className = "page-help page-help-static";
+        toggle.className = "page-help-toggle";
+        toggle.textContent = "?";
+        summary.appendChild(toggle);
+
+        body.className = "page-help-body";
+        sections.forEach(function (section) {
+            var wrap = document.createElement("div");
+            var title = document.createElement("strong");
+            var text = document.createElement("p");
+            wrap.className = "page-help-section";
+            title.textContent = section.title;
+            text.textContent = section.text;
+            wrap.appendChild(title);
+            wrap.appendChild(text);
+            body.appendChild(wrap);
+        });
+
+        details.appendChild(summary);
+        details.appendChild(body);
+        return details;
+    }
+
+    function mountSchedulePageHelp() {
+        var hero = qs(".workspace-hero");
+        var inlineHead = qs(".inline-workspace-head");
+        var descEl = qs(".workspace-desc");
+        var copyEl = qs(".workspace-copy");
+        var noteEl = qs(".sidebar-note");
+        var subtitleEl = byId("taskWorkspaceSubtitle");
+        var sections = [];
+        var actionsHost;
+        var heroStat;
+        var heroSide;
+
+        if (qs(".workspace-help-actions .page-help") || qs(".workspace-hero-side .page-help")) {
+            return;
+        }
+
+        if (descEl) {
+            sections.push({ title: "화면 설명", text: normalizeText(descEl.textContent, "") });
+            descEl.remove();
+        }
+        if (copyEl) {
+            sections.push({ title: "기능 설명", text: normalizeText(copyEl.textContent, "") });
+            copyEl.remove();
+        }
+        if (subtitleEl) {
+            sections.push({ title: "기능 설명", text: normalizeText(subtitleEl.textContent, "") });
+            subtitleEl.remove();
+        }
+        if (noteEl) {
+            sections.push({
+                title: normalizeHelpTitle(qs("strong", noteEl) ? qs("strong", noteEl).textContent : ""),
+                text: normalizeText(qs("p", noteEl) ? qs("p", noteEl).textContent : "", "")
+            });
+            noteEl.remove();
+        }
+
+        sections = sections.filter(function (section) {
+            return section.text;
+        });
+        if (!sections.length) return;
+
+        if (hero) {
+            hero.classList.add("workspace-hero-with-help");
+            actionsHost = qs(".calendar-hero-actions", hero);
+            if (actionsHost) {
+                actionsHost.classList.add("workspace-help-actions");
+                actionsHost.insertBefore(createHelpDetails(sections), actionsHost.firstChild);
+                return;
+            }
+            heroStat = qs(".hero-stat", hero);
+            if (heroStat) {
+                heroSide = document.createElement("div");
+                heroSide.className = "workspace-hero-side";
+                hero.insertBefore(heroSide, heroStat);
+                heroSide.appendChild(createHelpDetails(sections));
+                heroSide.appendChild(heroStat);
+                return;
+            }
+            actionsHost = document.createElement("div");
+            actionsHost.className = "workspace-help-actions";
+            actionsHost.appendChild(createHelpDetails(sections));
+            hero.appendChild(actionsHost);
+            return;
+        }
+
+        if (inlineHead) {
+            actionsHost = qs(".btns", inlineHead);
+            if (!actionsHost) {
+                actionsHost = document.createElement("div");
+                actionsHost.className = "btns";
+                inlineHead.appendChild(actionsHost);
+            }
+            actionsHost.classList.add("workspace-help-actions");
+            actionsHost.insertBefore(createHelpDetails(sections), actionsHost.firstChild);
+        }
+    }
+
+    function cleanupScheduleGuidance() {
+        qsa(".workspace-desc, .workspace-copy, .sidebar-note, .compact-head-note").forEach(function (el) {
+            el.remove();
+        });
+
+        qsa(".table-copy").forEach(function (el) {
+            if (el.id === "selectedDateTitle") return;
+            el.remove();
+        });
+
+        qsa(".calendar-day-selector > .panel-title, .day-task-panel .panel-title").forEach(function (el) {
+            el.remove();
+        });
+    }
+
     define("byId", byId);
     define("qs", qs);
     define("qsa", qsa);
@@ -195,4 +323,11 @@
     define("requestJson", requestJson);
     define("showAlertModal", showAlertModal);
     define("hideAlertModal", hideAlertModal);
+    define("mountSchedulePageHelp", mountSchedulePageHelp);
+    define("cleanupScheduleGuidance", cleanupScheduleGuidance);
+
+    if (document.body && document.body.classList.contains("schedule-page")) {
+        mountSchedulePageHelp();
+        cleanupScheduleGuidance();
+    }
 })(window);

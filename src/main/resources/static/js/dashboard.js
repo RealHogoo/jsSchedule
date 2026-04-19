@@ -12,6 +12,7 @@
         selectedProject: null,
         projectDetail: null,
         tasks: [],
+        nodeRollups: [],
         monthlyChart: null
     };
 
@@ -37,6 +38,27 @@
         if (type === "DEVELOPMENT") return "\uAC1C\uBC1C";
         if (type === "BLOG") return "\uBE14\uB85C\uADF8";
         return "\uC77C\uBC18";
+    }
+    function statusLabel(status) {
+        var value = String(status || "TODO").toUpperCase();
+        if (value === "IN_PROGRESS") return "\uC9C4\uD589 \uC911";
+        if (value === "DONE") return "\uC644\uB8CC";
+        if (value === "HOLD") return "\uBCF4\uB958";
+        return "\uD560 \uC77C";
+    }
+    function projectStatusLabel(status) {
+        var value = String(status || "PLANNING").toUpperCase();
+        if (value === "READY") return "\uC900\uBE44 \uC644\uB8CC";
+        if (value === "IN_PROGRESS") return "\uC9C4\uD589 \uC911";
+        if (value === "DONE") return "\uC644\uB8CC";
+        if (value === "HOLD") return "\uBCF4\uB958";
+        return "\uAE30\uD68D \uC911";
+    }
+    function priorityLabel(priority) {
+        var value = String(priority || "MEDIUM").toUpperCase();
+        if (value === "HIGH") return "\uB192\uC74C";
+        if (value === "LOW") return "\uB0AE\uC74C";
+        return "\uBCF4\uD1B5";
     }
     function insightConfig(type) {
         if (type === "BLOG") {
@@ -85,6 +107,76 @@
         var target = byId(targetId);
         if (!target) return;
         target.innerHTML = rows.map(function (row) { return "<dt>" + esc(row.label) + "</dt><dd>" + esc(row.value) + "</dd>"; }).join("");
+    }
+    function childTasksOf(parentId, tasks) {
+        return tasks.filter(function (task) {
+            return String(task.parent_task_id || "") === String(parentId || "");
+        });
+    }
+    function descendantTasksOf(parentId, tasks) {
+        var directChildren = childTasksOf(parentId, tasks);
+        return directChildren.reduce(function (list, child) {
+            return list.concat(child, descendantTasksOf(child.task_id, tasks));
+        }, []);
+    }
+    function aggregateChildTasks(tasks) {
+        return tasks.reduce(function (summary, task) {
+            var status = String(task.task_status || "TODO").toUpperCase();
+            var overdue = task.due_date && status !== "DONE" && parseDate(task.due_date) < today();
+            if (status === "DONE") summary.doneCount += 1;
+            if (status === "IN_PROGRESS") summary.inProgressCount += 1;
+            if (overdue) summary.overdueCount += 1;
+            summary.supportAmountTotal += number(task.support_amount);
+            summary.actualAmountTotal += number(task.actual_amount);
+            return summary;
+        }, {
+            childCount: tasks.length,
+            doneCount: 0,
+            inProgressCount: 0,
+            overdueCount: 0,
+            supportAmountTotal: 0,
+            actualAmountTotal: 0
+        });
+    }
+    function buildTaskNodeRollupsFromTasks(tasks) {
+        return tasks.filter(function (task) {
+            return !task.parent_task_id;
+        }).map(function (task) {
+            return {
+                taskId: task.task_id,
+                taskTitle: task.task_title || "-",
+                rollup: aggregateChildTasks(descendantTasksOf(task.task_id, tasks))
+            };
+        }).filter(function (item) {
+            return item.rollup.childCount > 0;
+        });
+    }
+    function renderGroupCharts(rollup) {
+        var statusTotal = Math.max(1, rollup.doneCount + rollup.inProgressCount + rollup.overdueCount);
+        var moneyTotal = Math.max(1, rollup.supportAmountTotal + rollup.actualAmountTotal);
+        return "<div class=\"dashboard-group-chart\">"
+            + "<div class=\"dashboard-group-chart-row\">"
+            + "<div class=\"dashboard-group-legend\">"
+            + "<span class=\"dashboard-group-chip is-done\">완료 " + esc(formatCount(rollup.doneCount)) + "</span>"
+            + "<span class=\"dashboard-group-chip is-progress\">진행 " + esc(formatCount(rollup.inProgressCount)) + "</span>"
+            + "<span class=\"dashboard-group-chip is-overdue\">지연 " + esc(formatCount(rollup.overdueCount)) + "</span>"
+            + "</div>"
+            + "<div class=\"dashboard-group-track is-status\">"
+            + "<span class=\"dashboard-group-fill is-done\" style=\"width:" + esc(String(Math.round((rollup.doneCount / statusTotal) * 100))) + "%\"></span>"
+            + "<span class=\"dashboard-group-fill is-progress\" style=\"width:" + esc(String(Math.round((rollup.inProgressCount / statusTotal) * 100))) + "%\"></span>"
+            + "<span class=\"dashboard-group-fill is-overdue\" style=\"width:" + esc(String(Math.round((rollup.overdueCount / statusTotal) * 100))) + "%\"></span>"
+            + "</div>"
+            + "</div>"
+            + "<div class=\"dashboard-group-chart-row\">"
+            + "<div class=\"dashboard-group-legend\">"
+            + "<span class=\"dashboard-group-chip is-support\">지원금액 " + esc(formatMoney(rollup.supportAmountTotal)) + "</span>"
+            + "<span class=\"dashboard-group-chip is-actual\">사용금액 " + esc(formatMoney(rollup.actualAmountTotal)) + "</span>"
+            + "</div>"
+            + "<div class=\"dashboard-group-track is-money\">"
+            + "<span class=\"dashboard-group-fill is-support\" style=\"width:" + esc(String(Math.round((rollup.supportAmountTotal / moneyTotal) * 100))) + "%\"></span>"
+            + "<span class=\"dashboard-group-fill is-actual\" style=\"width:" + esc(String(Math.round((rollup.actualAmountTotal / moneyTotal) * 100))) + "%\"></span>"
+            + "</div>"
+            + "</div>";
     }
     function renderSummary(summary) {
         var target = byId("summaryCards");
@@ -155,7 +247,7 @@
             mainMetricText = "\uD0DC\uC2A4\uD06C " + formatCount(stats.total) + "\uAC74";
             subMetricText = "\uD3C9\uADE0 \uC9C4\uD589\uB960 " + formatPercent(stats.avgProgress);
         }
-        target.innerHTML = "<div class=\"dashboard-project-hero-main\"><div><div class=\"hero-kicker\">" + esc(typeLabel(type)) + " \uD504\uB85C\uC81D\uD2B8</div><h3 class=\"dashboard-project-title\">" + esc(project.project_name || "-") + "</h3><p class=\"workspace-copy dashboard-project-copy\">" + esc(project.description || "\uD504\uB85C\uC81D\uD2B8 \uC124\uBA85\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p></div><div class=\"dashboard-project-badges\"><span class=\"status-chip\">" + esc(project.project_key || "-") + "</span><span class=\"status-chip\">" + esc(typeLabel(type)) + "</span><span class=\"status-chip status-" + esc(String(project.project_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(project.project_status || "-") + "</span></div></div>"
+        target.innerHTML = "<div class=\"dashboard-project-hero-main\"><div><div class=\"hero-kicker\">" + esc(typeLabel(type)) + " \uD504\uB85C\uC81D\uD2B8</div><h3 class=\"dashboard-project-title\">" + esc(project.project_name || "-") + "</h3><p class=\"workspace-copy dashboard-project-copy\">" + esc(project.description || "\uD504\uB85C\uC81D\uD2B8 \uC124\uBA85\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p></div><div class=\"dashboard-project-badges\"><span class=\"status-chip\">" + esc(project.project_key || "-") + "</span><span class=\"status-chip\">" + esc(typeLabel(type)) + "</span><span class=\"status-chip status-" + esc(String(project.project_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(projectStatusLabel(project.project_status)) + "</span></div></div>"
             + "<div class=\"dashboard-project-meta-grid\"><article><span>\uAE30\uAC04</span><strong>" + esc(formatPeriod(project.start_date, project.end_date)) + "</strong></article><article><span>\uB2F4\uB2F9\uC790</span><strong>" + esc(project.owner_user_id || "-") + "</strong></article><article><span>\uAD6C\uC131\uC6D0</span><strong>" + esc(formatCount(project.member_count || 0)) + "\uBA85</strong></article><article><span>\uB9C8\uC77C\uC2A4\uD1A4</span><strong>" + esc(formatCount(project.milestone_count || 0)) + "\uAC74</strong></article><article><span>\uD575\uC2EC \uC9C0\uD45C</span><strong>" + esc(mainMetricText) + "</strong></article><article><span>\uBCF4\uC870 \uC9C0\uD45C</span><strong>" + esc(subMetricText) + "</strong></article></div>";
     }
     function renderMetricCards() {
@@ -194,6 +286,35 @@
         }
         target.innerHTML = cards.map(function (card) { return "<article class=\"dashboard-metric-card tone-" + esc(card.tone) + "\"><span>" + esc(card.label) + "</span><strong>" + esc(card.value) + "</strong></article>"; }).join("");
     }
+    function renderNodeRollups() {
+        var target = byId("nodeRollupList");
+        var panel;
+        var statusPanel;
+        var title;
+        if (!target) return;
+        panel = target.closest ? target.closest(".panel") : null;
+        statusPanel = byId("statusChart");
+        statusPanel = statusPanel && statusPanel.closest ? statusPanel.closest(".panel") : null;
+        if (panel && statusPanel && statusPanel.parentNode === panel.parentNode && panel.previousElementSibling !== statusPanel) {
+            statusPanel.insertAdjacentElement("afterend", panel);
+        }
+        title = target.parentNode ? target.parentNode.querySelector(".panel-title") : null;
+        UX.setText(title, "\uADF8\uB8F9\uBCC4 \uC9D1\uACC4");
+        if (!state.selectedProjectId) {
+            target.innerHTML = "<div class=\"detail-empty\">\uD504\uB85C\uC81D\uD2B8\uB97C \uC120\uD0DD\uD558\uBA74 \uADF8\uB8F9\uBCC4 \uC9D1\uACC4\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.</div>";
+            return;
+        }
+        if (!state.nodeRollups.length) {
+            target.innerHTML = "<div class=\"detail-empty\">\uD45C\uC2DC\uD560 \uD558\uC704 \uD0DC\uC2A4\uD06C \uC9D1\uACC4 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
+            return;
+        }
+        target.innerHTML = state.nodeRollups.map(function (taskRollup) {
+            return "<article class=\"dashboard-node-task-card\">"
+                + "<div class=\"dashboard-node-task-head\"><strong>" + esc(taskRollup.taskTitle) + "</strong></div>"
+                + renderGroupCharts(taskRollup.rollup)
+                + "</article>";
+        }).join("");
+    }
     function statusColor(status) {
         if (status === "DONE") return "#16a34a";
         if (status === "IN_PROGRESS") return "#d97706";
@@ -216,10 +337,10 @@
             return;
         }
         segments = [
-            { label: "TODO", value: stats.todo, color: statusColor("TODO") },
-            { label: "IN_PROGRESS", value: stats.inProgress, color: statusColor("IN_PROGRESS") },
-            { label: "DONE", value: stats.done, color: statusColor("DONE") },
-            { label: "HOLD", value: stats.hold, color: statusColor("HOLD") }
+            { label: statusLabel("TODO"), value: stats.todo, color: statusColor("TODO") },
+            { label: statusLabel("IN_PROGRESS"), value: stats.inProgress, color: statusColor("IN_PROGRESS") },
+            { label: statusLabel("DONE"), value: stats.done, color: statusColor("DONE") },
+            { label: statusLabel("HOLD"), value: stats.hold, color: statusColor("HOLD") }
         ];
         target.innerHTML = "<div class=\"dashboard-stack-bar\">"
             + segments.map(function (segment) { return "<span class=\"dashboard-stack-segment\" style=\"width:" + esc(String(Math.max(4, Math.round((segment.value / total) * 100)))) + "%;background:" + esc(segment.color) + "\"></span>"; }).join("")
@@ -447,7 +568,7 @@
         }
         target.innerHTML = risky.map(function (task) {
             var overdue = task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today();
-            return "<button type=\"button\" class=\"dashboard-watch-card is-risk js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><strong>" + esc(task.task_title || "-") + "</strong><p>" + esc(task.project_name || "-") + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(task.task_status || "-") + "</span><span>" + esc(overdue ? "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C" : "\uBCF4\uB958 \uD0DC\uC2A4\uD06C") + "</span></div></button>";
+        return "<button type=\"button\" class=\"dashboard-watch-card is-risk js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><strong>" + esc(task.task_title || "-") + "</strong><p>" + esc(task.project_name || "-") + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(statusLabel(task.task_status)) + "</span><span>" + esc(overdue ? "\uC9C0\uC5F0 \uD0DC\uC2A4\uD06C" : "\uBCF4\uB958 \uD0DC\uC2A4\uD06C") + "</span></div></button>";
         }).join("");
         bindTaskLinks(target);
     }
@@ -460,7 +581,7 @@
             return;
         }
         target.innerHTML = rows.map(function (task) {
-            return "<button type=\"button\" class=\"dashboard-watch-card js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><div class=\"dashboard-watch-head\"><strong>" + esc(task.task_title || "-") + "</strong><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span></div><p>" + esc(task.assignee_user_id || "-") + " / " + esc(task.priority || "-") + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(formatPercent(task.progress_rate || 0)) + "</span></div></button>";
+        return "<button type=\"button\" class=\"dashboard-watch-card js-task-link\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"><div class=\"dashboard-watch-head\"><strong>" + esc(task.task_title || "-") + "</strong><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(statusLabel(task.task_status)) + "</span></div><p>" + esc(task.assignee_user_id || "-") + " / " + esc(priorityLabel(task.priority)) + "</p><div class=\"dashboard-watch-meta\"><span>" + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + esc(formatPercent(task.progress_rate || 0)) + "</span></div></button>";
         }).join("");
         bindTaskLinks(target);
     }
@@ -469,6 +590,7 @@
         applyInsightCopy();
         renderProjectHero();
         renderMetricCards();
+        renderNodeRollups();
         renderStatusChart();
         renderMonthlyTrendChart();
         renderTimelineChart();
@@ -495,8 +617,16 @@
             var tasks = results[1];
             state.projectDetail = detail && detail.ok === true ? detail.data || null : null;
             state.tasks = tasks && tasks.ok === true && Array.isArray(tasks.data) ? tasks.data : [];
-            renderDashboard();
+            return loadNodeRollups().then(renderDashboard);
         });
+    }
+    function loadNodeRollups() {
+        if (!state.tasks.length) {
+            state.nodeRollups = [];
+            return Promise.resolve();
+        }
+        state.nodeRollups = buildTaskNodeRollupsFromTasks(state.tasks);
+        return Promise.resolve();
     }
     function loadProjects(preserveSelection) {
         return UX.requestJson("/project/list.json", currentFilter()).then(function (response) {

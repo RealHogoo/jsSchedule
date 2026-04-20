@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.node.service;
 
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiException;
+import com.realhogoo.jsschedule.auth.RoleSupport;
 import com.realhogoo.jsschedule.node.mapper.NodeMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -324,7 +325,7 @@ public class NodeServiceImpl implements NodeService {
         Map<String, Object> query = new LinkedHashMap<String, Object>();
         query.put("task_id", taskId);
         query.put("viewer_user_id", viewerUserId);
-        query.put("viewer_is_admin", isAdmin(viewerRoles));
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
         return query;
     }
 
@@ -332,7 +333,7 @@ public class NodeServiceImpl implements NodeService {
         Map<String, Object> query = new LinkedHashMap<String, Object>();
         query.put("node_id", nodeId);
         query.put("viewer_user_id", viewerUserId);
-        query.put("viewer_is_admin", isAdmin(viewerRoles));
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
         return query;
     }
 
@@ -447,15 +448,8 @@ public class NodeServiceImpl implements NodeService {
         return parentNodeId;
     }
 
-    private boolean isAdmin(List<String> viewerRoles) {
-        if (viewerRoles == null || viewerRoles.isEmpty()) {
-            return false;
-        }
-        return viewerRoles.contains("ROLE_ADMIN") || viewerRoles.contains("ROLE_SUPER_ADMIN");
-    }
-
     private void ensureAdmin(List<String> viewerRoles) {
-        if (!isAdmin(viewerRoles)) {
+        if (!RoleSupport.isAdmin(viewerRoles)) {
             throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "admin role is required");
         }
     }

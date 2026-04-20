@@ -12,6 +12,9 @@
         selectedProject: null,
         projectDetail: null,
         tasks: [],
+        taskStats: null,
+        monthlyStats: null,
+        taskViews: null,
         nodeRollups: [],
         monthlyChart: null
     };
@@ -103,21 +106,45 @@
         stats.avgProgress = tasks.length ? Math.round(stats.avgProgress / tasks.length) : 0;
         return stats;
     }
+    function currentTaskStats() {
+        if (!state.taskStats) {
+            state.taskStats = taskStats(state.tasks);
+        }
+        return state.taskStats;
+    }
+    function currentMonthlyTrendStats() {
+        if (!state.monthlyStats) {
+            state.monthlyStats = monthlyTrendStats();
+        }
+        return state.monthlyStats;
+    }
+    function currentTaskViews() {
+        var sortedTasks;
+
+        if (!state.taskViews) {
+            sortedTasks = state.tasks.slice().sort(function (a, b) {
+                return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31"));
+            });
+            state.taskViews = {
+                timelineRows: sortedTasks.filter(function (task) { return task.start_date || task.due_date; }).slice(0, 8),
+                boardRows: sortedTasks.slice(0, 6),
+                riskyRows: state.tasks.filter(function (task) {
+                    var overdue = task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today();
+                    return overdue || String(task.task_status || "") === "HOLD";
+                }).slice(0, 6)
+            };
+        }
+        return state.taskViews;
+    }
+    function resetTaskDerivedState() {
+        state.taskStats = null;
+        state.monthlyStats = null;
+        state.taskViews = null;
+    }
     function bindInfo(targetId, rows) {
         var target = byId(targetId);
         if (!target) return;
         target.innerHTML = rows.map(function (row) { return "<dt>" + esc(row.label) + "</dt><dd>" + esc(row.value) + "</dd>"; }).join("");
-    }
-    function childTasksOf(parentId, tasks) {
-        return tasks.filter(function (task) {
-            return String(task.parent_task_id || "") === String(parentId || "");
-        });
-    }
-    function descendantTasksOf(parentId, tasks) {
-        var directChildren = childTasksOf(parentId, tasks);
-        return directChildren.reduce(function (list, child) {
-            return list.concat(child, descendantTasksOf(child.task_id, tasks));
-        }, []);
     }
     function aggregateChildTasks(tasks) {
         return tasks.reduce(function (summary, task) {
@@ -138,14 +165,54 @@
             actualAmountTotal: 0
         });
     }
+    function aggregateSingleTask(task) {
+        return aggregateChildTasks(task ? [task] : []);
+    }
+    function mergeTaskRollup(target, source) {
+        target.childCount += source.childCount;
+        target.doneCount += source.doneCount;
+        target.inProgressCount += source.inProgressCount;
+        target.overdueCount += source.overdueCount;
+        target.supportAmountTotal += source.supportAmountTotal;
+        target.actualAmountTotal += source.actualAmountTotal;
+        return target;
+    }
     function buildTaskNodeRollupsFromTasks(tasks) {
+        var childrenByParent = {};
+        var rollupCache = {};
+
+        tasks.forEach(function (task) {
+            var parentKey = String(task.parent_task_id || "");
+            if (!childrenByParent[parentKey]) {
+                childrenByParent[parentKey] = [];
+            }
+            childrenByParent[parentKey].push(task);
+        });
+
+        function rollupForTask(taskId) {
+            var key = String(taskId || "");
+            var directChildren = childrenByParent[key] || [];
+
+            if (rollupCache[key]) {
+                return rollupCache[key];
+            }
+
+            rollupCache[key] = directChildren.reduce(function (summary, child) {
+                mergeTaskRollup(summary, aggregateSingleTask(child));
+                mergeTaskRollup(summary, rollupForTask(child.task_id));
+                return summary;
+            }, aggregateChildTasks([]));
+
+            return rollupCache[key];
+        }
+
         return tasks.filter(function (task) {
             return !task.parent_task_id;
         }).map(function (task) {
             return {
                 taskId: task.task_id,
                 taskTitle: task.task_title || "-",
-                rollup: aggregateChildTasks(descendantTasksOf(task.task_id, tasks))
+                rollup: rollupForTask(task.task_id)
             };
         }).filter(function (item) {
             return item.rollup.childCount > 0;
@@ -229,7 +296,7 @@
         var target = byId("projectHero");
         var project = state.projectDetail || state.selectedProject;
         var type = selectedProjectType();
-        var stats = taskStats(state.tasks);
+        var stats = currentTaskStats();
         var mainMetricText;
         var subMetricText;
         if (!target) return;
@@ -252,7 +319,7 @@
     }
     function renderMetricCards() {
         var target = byId("projectMetricCards");
-        var stats = taskStats(state.tasks);
+        var stats = currentTaskStats();
         var type = selectedProjectType();
         var cards;
         if (!target) return;
@@ -323,7 +390,7 @@
     }
     function renderStatusChart() {
         var target = byId("statusChart");
-        var stats = taskStats(state.tasks);
+        var stats = currentTaskStats();
         var type = selectedProjectType();
         var total = Math.max(stats.total, 1);
         var segments;
@@ -422,22 +489,24 @@
     }
     function renderMonthlyTrendChart() {
         var target = byId("monthlyTrendChart");
-        var rows = monthlyTrendStats();
+        var rows = currentMonthlyTrendStats();
         var echarts = global.echarts;
+        var canvas = byId("monthlyTrendCanvas");
         var type = selectedProjectType();
         var labels = monthlyMetricLabels(type);
         var metricAxisName = monthlyMetricAxisName(type);
         if (!target) return;
-        if (state.monthlyChart) {
-            state.monthlyChart.dispose();
-            state.monthlyChart = null;
-        }
         if (!echarts) {
             target.innerHTML = "<div class=\"detail-empty\">\uCC28\uD2B8 \uB77C\uC774\uBE0C\uB7EC\uB9AC\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.</div>";
             return;
         }
-        target.innerHTML = "<div id=\"monthlyTrendCanvas\" class=\"dashboard-chart-canvas-wrap\"></div>";
-        state.monthlyChart = echarts.init(byId("monthlyTrendCanvas"));
+        if (!canvas) {
+            target.innerHTML = "<div id=\"monthlyTrendCanvas\" class=\"dashboard-chart-canvas-wrap\"></div>";
+            canvas = byId("monthlyTrendCanvas");
+        }
+        if (!state.monthlyChart) {
+            state.monthlyChart = echarts.init(canvas);
+        }
         state.monthlyChart.setOption({
             animationDuration: 450,
             color: ["#d97706", "#16a34a", "#2563eb", "#7c3aed"],
@@ -523,11 +592,12 @@
                     data: rows.map(function (row) { return row.sub; })
                 }
             ]
-        });
+        }, true);
+        state.monthlyChart.resize();
     }
     function renderTimelineChart() {
         var target = byId("timelineChart");
-        var rows = state.tasks.slice().filter(function (task) { return task.start_date || task.due_date; }).sort(function (a, b) { return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")); }).slice(0, 8);
+        var rows = currentTaskViews().timelineRows;
         var minDate;
         var maxDate;
         if (!target) return;
@@ -556,11 +626,7 @@
     }
     function renderRiskList() {
         var target = byId("riskList");
-        var risky = state.tasks.filter(function (task) {
-            var overdue = task.due_date && String(task.task_status || "") !== "DONE" && parseDate(task.due_date) < today();
-            var stalled = String(task.task_status || "") === "HOLD";
-            return overdue || stalled;
-        }).slice(0, 6);
+        var risky = currentTaskViews().riskyRows;
         if (!target) return;
         if (!risky.length) {
             target.innerHTML = "<div class=\"detail-empty\">\uC989\uC2DC \uD655\uC778\uC774 \uD544\uC694\uD55C \uC9C0\uC5F0 \uD0DC\uC2A4\uD06C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
@@ -574,7 +640,7 @@
     }
     function renderTaskBoard() {
         var target = byId("taskBoard");
-        var rows = state.tasks.slice().sort(function (a, b) { return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")); }).slice(0, 6);
+        var rows = currentTaskViews().boardRows;
         if (!target) return;
         if (!rows.length) {
             target.innerHTML = "<div class=\"detail-empty\">\uD45C\uC2DC\uD560 \uCD5C\uADFC \uD0DC\uC2A4\uD06C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
@@ -585,8 +651,12 @@
         }).join("");
         bindTaskLinks(target);
     }
-    function renderDashboard() {
-        renderProjectSelector();
+    function renderDashboardShell() {
+        applyInsightCopy();
+        renderProjectHero();
+        renderMetricCards();
+    }
+    function renderProjectDashboard() {
         applyInsightCopy();
         renderProjectHero();
         renderMetricCards();
@@ -606,7 +676,8 @@
         if (!state.selectedProjectId) {
             state.projectDetail = null;
             state.tasks = [];
-            renderDashboard();
+            resetTaskDerivedState();
+            renderProjectDashboard();
             return Promise.resolve();
         }
         return Promise.all([
@@ -617,7 +688,8 @@
             var tasks = results[1];
             state.projectDetail = detail && detail.ok === true ? detail.data || null : null;
             state.tasks = tasks && tasks.ok === true && Array.isArray(tasks.data) ? tasks.data : [];
-            return loadNodeRollups().then(renderDashboard);
+            resetTaskDerivedState();
+            return loadNodeRollups().then(renderProjectDashboard);
         });
     }
     function loadNodeRollups() {
@@ -634,6 +706,7 @@
             state.projects = response && response.ok === true && Array.isArray(response.data) ? response.data : [];
             nextId = preserveSelection && state.projects.some(function (project) { return String(project.project_id) === String(state.selectedProjectId); }) ? state.selectedProjectId : (state.projects[0] ? String(state.projects[0].project_id) : "");
             applySelectedProject(nextId);
+            renderProjectSelector();
             return loadProjectDetail();
         });
     }
@@ -700,6 +773,6 @@
     }
     bindEvents();
     syncSidebarMode();
-    renderDashboard();
+    renderDashboardShell();
     loadDashboard();
 })(window);

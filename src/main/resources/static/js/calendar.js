@@ -6,6 +6,7 @@
         sidebarOpen: false,
         currentUser: {},
         tasks: [],
+        tasksByDate: {},
         currentMonth: startOfMonth(new Date()),
         selectedDate: toDateKey(new Date())
     };
@@ -88,11 +89,7 @@
     }
 
     function tasksForDate(dateKey) {
-        return state.tasks.filter(function (task) {
-            return taskContainsDate(task, dateKey);
-        }).sort(function (a, b) {
-            return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31"));
-        });
+        return state.tasksByDate[dateKey] || [];
     }
 
     function summarizeTaskStatuses(items) {
@@ -152,6 +149,38 @@
         target.innerHTML = rows.map(function (row) {
             return "<dt>" + esc(row.label) + "</dt><dd>" + esc(row.value) + "</dd>";
         }).join("");
+    }
+
+    function indexTasksByDate(tasks) {
+        var indexed = {};
+
+        tasks.forEach(function (task) {
+            var range = taskDateRange(task);
+            var cursor;
+            var dateKey;
+
+            if (!range.start || !range.end) {
+                return;
+            }
+
+            cursor = new Date(range.start);
+            while (cursor <= range.end) {
+                dateKey = toDateKey(cursor);
+                if (!indexed[dateKey]) {
+                    indexed[dateKey] = [];
+                }
+                indexed[dateKey].push(task);
+                cursor = addDays(cursor, 1);
+            }
+        });
+
+        Object.keys(indexed).forEach(function (dateKey) {
+            indexed[dateKey].sort(function (a, b) {
+                return String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31"));
+            });
+        });
+
+        return indexed;
     }
 
     function renderSummary(summary) {
@@ -248,15 +277,18 @@
         return UX.requestJson("/task/list.json", readFilters()).then(function (response) {
             if (!response || response.ok !== true) {
                 state.tasks = [];
+                state.tasksByDate = {};
                 showWarningModal("불러오기 실패");
                 renderSchedule();
                 return;
             }
             state.tasks = Array.isArray(response.data) ? response.data : [];
+            state.tasksByDate = indexTasksByDate(state.tasks);
             setMessage("", "");
             renderSchedule();
         }).catch(function () {
             state.tasks = [];
+            state.tasksByDate = {};
             showWarningModal("불러오기 실패");
             renderSchedule();
         });

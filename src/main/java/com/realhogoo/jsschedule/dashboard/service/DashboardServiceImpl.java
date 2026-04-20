@@ -1,5 +1,6 @@
 package com.realhogoo.jsschedule.dashboard.service;
 
+import com.realhogoo.jsschedule.auth.RoleSupport;
 import com.realhogoo.jsschedule.dashboard.mapper.DashboardMapper;
 import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import org.slf4j.Logger;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -23,10 +25,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public Map<String, Object> getSummary(Map<String, Object> params, String accessToken) {
+    public Map<String, Object> getSummary(Map<String, Object> params, String accessToken, String viewerUserId, List<String> viewerRoles) {
         log.info("JOB_START dashboard.summary");
         try {
-            Map<String, Object> summary = dashboardMapper.selectSummary(params == null ? Collections.<String, Object>emptyMap() : params);
+            Map<String, Object> query = accessParams(params, viewerUserId, viewerRoles);
+            Map<String, Object> summary = dashboardMapper.selectSummary(query);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
             response.put("summary", summary);
             response.put("current_user", adminServiceClient.fetchCurrentUser(accessToken));
@@ -39,10 +42,10 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public Map<String, Object> getDetail(Map<String, Object> params, String accessToken) {
+    public Map<String, Object> getDetail(Map<String, Object> params, String accessToken, String viewerUserId, List<String> viewerRoles) {
         log.info("JOB_START dashboard.detail");
         try {
-            Map<String, Object> safeParams = params == null ? Collections.<String, Object>emptyMap() : params;
+            Map<String, Object> safeParams = accessParams(params, viewerUserId, viewerRoles);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
             response.put("summary", dashboardMapper.selectSummary(safeParams));
             response.put("project_stats", dashboardMapper.selectProjectStats(safeParams));
@@ -54,5 +57,12 @@ public class DashboardServiceImpl implements DashboardService {
             log.error("JOB_FAIL dashboard.detail", exception);
             throw exception;
         }
+    }
+
+    private Map<String, Object> accessParams(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>(params == null ? Collections.<String, Object>emptyMap() : params);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        return query;
     }
 }

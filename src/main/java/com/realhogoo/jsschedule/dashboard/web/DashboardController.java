@@ -1,6 +1,7 @@
 package com.realhogoo.jsschedule.dashboard.web;
 
 import com.realhogoo.jsschedule.api.ApiResponse;
+import com.realhogoo.jsschedule.auth.AuthRequestSupport;
 import com.realhogoo.jsschedule.dashboard.service.DashboardService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,12 +22,12 @@ public class DashboardController {
     @PostMapping("/dashboard/summary.json")
     public ApiResponse<Object> summary(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
         String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
-        return ApiResponse.ok(dashboardService.getSummary(body, accessToken), request);
+        return ApiResponse.ok(dashboardService.getSummary(body, accessToken, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/dashboard/detail.json")
     public ApiResponse<Object> detail(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
         String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
-        return ApiResponse.ok(dashboardService.getDetail(body, accessToken), request);
+        return ApiResponse.ok(dashboardService.getDetail(body, accessToken, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 }

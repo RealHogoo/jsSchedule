@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.project.service;
 
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiException;
+import com.realhogoo.jsschedule.auth.RoleSupport;
 import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import com.realhogoo.jsschedule.project.mapper.ProjectMapper;
 import org.springframework.http.HttpStatus;
@@ -36,19 +37,26 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<Map<String, Object>> getProjectList(Map<String, Object> params) {
-        return projectMapper.selectProjectList(params == null ? Collections.<String, Object>emptyMap() : params);
+    public List<Map<String, Object>> getProjectList(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>(params == null ? Collections.<String, Object>emptyMap() : params);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        return projectMapper.selectProjectList(query);
     }
 
     @Override
-    public Map<String, Object> getProjectDetail(Map<String, Object> params) {
+    public Map<String, Object> getProjectDetail(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
         Map<String, Object> request = params == null ? Collections.<String, Object>emptyMap() : params;
         Long projectId = asLong(request.get("project_id"));
         if (projectId == null) {
             throw ApiException.badRequest("project_id is required");
         }
 
-        Map<String, Object> detail = projectMapper.selectProjectDetail(Collections.<String, Object>singletonMap("project_id", projectId));
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        Map<String, Object> detail = projectMapper.selectProjectDetail(query);
         if (detail == null || detail.isEmpty()) {
             throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
         }
@@ -101,7 +109,7 @@ public class ProjectServiceImpl implements ProjectService {
             projectMapper.updateProject(payload);
         }
 
-        return getProjectDetail(Collections.<String, Object>singletonMap("project_id", projectId));
+        return getProjectDetail(Collections.<String, Object>singletonMap("project_id", projectId), ownerUserId, Collections.singletonList("ROLE_ADMIN"));
     }
 
     @Override

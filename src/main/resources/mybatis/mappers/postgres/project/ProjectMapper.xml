@@ -2,6 +2,20 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.realhogoo.jsschedule.project.mapper.ProjectMapper">
 
+    <sql id="ProjectAccessWhere">
+        <if test="viewer_is_admin == null or viewer_is_admin == false">
+            AND (
+                p.owner_user_id = #{viewer_user_id}
+                OR EXISTS (
+                    SELECT 1
+                    FROM schedule_project_member pmx
+                    WHERE pmx.project_id = p.project_id
+                      AND pmx.user_id = #{viewer_user_id}
+                )
+            )
+        </if>
+    </sql>
+
     <select id="selectProjectList" parameterType="map" resultType="map">
         SELECT
             p.project_id,
@@ -19,6 +33,7 @@
         LEFT JOIN schedule_task t ON t.project_id = p.project_id
         LEFT JOIN schedule_milestone m ON m.project_id = p.project_id
         <where>
+            <include refid="ProjectAccessWhere"/>
             <if test="keyword != null and keyword != ''">
                 AND (
                     p.project_name ILIKE CONCAT('%', #{keyword}, '%')
@@ -65,7 +80,10 @@
         LEFT JOIN schedule_project_member pm ON pm.project_id = p.project_id
         LEFT JOIN schedule_task t ON t.project_id = p.project_id
         LEFT JOIN schedule_milestone m ON m.project_id = p.project_id
-        WHERE p.project_id = #{project_id}
+        <where>
+            AND p.project_id = #{project_id}
+            <include refid="ProjectAccessWhere"/>
+        </where>
         GROUP BY
             p.project_id,
             p.project_key,

@@ -1,6 +1,7 @@
 package com.realhogoo.jsschedule.project.web;
 
 import com.realhogoo.jsschedule.api.ApiResponse;
+import com.realhogoo.jsschedule.auth.AuthRequestSupport;
 import com.realhogoo.jsschedule.project.service.ProjectService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,12 +21,12 @@ public class ProjectController {
 
     @PostMapping("/project/list.json")
     public ApiResponse<Object> list(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
-        return ApiResponse.ok(projectService.getProjectList(body), request);
+        return ApiResponse.ok(projectService.getProjectList(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/project/detail.json")
     public ApiResponse<Object> detail(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        return ApiResponse.ok(projectService.getProjectDetail(body), request);
+        return ApiResponse.ok(projectService.getProjectDetail(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/project/save.json")

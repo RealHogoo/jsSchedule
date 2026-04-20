@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.task.service;
 
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiException;
+import com.realhogoo.jsschedule.auth.RoleSupport;
 import com.realhogoo.jsschedule.integration.kakao.KakaoMapClient;
 import com.realhogoo.jsschedule.task.mapper.TaskMapper;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,7 @@ public class TaskServiceImpl implements TaskService {
         Map<String, Object> query = new LinkedHashMap<String, Object>(params == null ? Collections.<String, Object>emptyMap() : params);
         query.put("project_id", asLong(query.get("project_id"), "project_id"));
         query.put("viewer_user_id", viewerUserId);
-        query.put("viewer_is_admin", isAdmin(viewerRoles));
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
         return taskMapper.selectTaskList(query);
     }
 
@@ -57,7 +58,7 @@ public class TaskServiceImpl implements TaskService {
         }
         query.put("task_id", taskId);
         query.put("viewer_user_id", viewerUserId);
-        query.put("viewer_is_admin", isAdmin(viewerRoles));
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
 
         Map<String, Object> detail = taskMapper.selectTaskDetail(query);
         if (detail == null || detail.isEmpty()) {
@@ -337,13 +338,6 @@ public class TaskServiceImpl implements TaskService {
             max = Math.max(max, 1 + subtreeHeight(childId, children, new HashSet<Long>(visited)));
         }
         return max;
-    }
-
-    private boolean isAdmin(List<String> viewerRoles) {
-        if (viewerRoles == null || viewerRoles.isEmpty()) {
-            return false;
-        }
-        return viewerRoles.contains("ROLE_ADMIN") || viewerRoles.contains("ROLE_SUPER_ADMIN");
     }
 
     private String requiredText(Object value, String message) {

@@ -1,5 +1,6 @@
 package com.realhogoo.jsschedule.auth.web;
 
+import com.realhogoo.jsschedule.auth.ServicePermissionSupport;
 import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +41,10 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
                 response.sendRedirect(request.getContextPath() + "/project.html");
                 return false;
             }
+            if (!hasRequiredPermission(path, token)) {
+                response.sendRedirect(request.getContextPath() + "/project.html");
+                return false;
+            }
             return true;
         }
 
@@ -51,8 +56,11 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         return "/".equals(path)
             || "/index.html".equals(path)
             || "/project.html".equals(path)
+            || "/dashboard.html".equals(path)
             || "/schedule.html".equals(path)
-            || "/task.html".equals(path);
+            || "/task.html".equals(path)
+            || "/project-form.html".equals(path)
+            || "/task-form.html".equals(path);
     }
 
     private boolean isValidToken(String token) {
@@ -65,6 +73,35 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         } catch (Exception exception) {
             return false;
         }
+    }
+
+    private boolean hasRequiredPermission(String path, String token) {
+        if (!requiresServicePermission(path)) {
+            return true;
+        }
+        try {
+            Map<String, Object> currentUser = adminServiceClient.fetchCurrentUser(token.trim());
+            return ServicePermissionSupport.hasPermission(
+                ServicePermissionSupport.parsePermissions(currentUser.get("service_permissions")),
+                ServicePermissionSupport.SCHEDULE_SERVICE,
+                requiredPermission(path)
+            );
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    private boolean requiresServicePermission(String path) {
+        return "/dashboard.html".equals(path)
+            || "/project-form.html".equals(path)
+            || "/task-form.html".equals(path);
+    }
+
+    private String requiredPermission(String path) {
+        if ("/dashboard.html".equals(path)) {
+            return ServicePermissionSupport.DASHBOARD_ACCESS;
+        }
+        return ServicePermissionSupport.WRITE;
     }
 
     private String buildAdminLoginUrl(HttpServletRequest request) {

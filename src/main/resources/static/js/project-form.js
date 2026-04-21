@@ -96,6 +96,22 @@
         return name + "(" + id + ")";
     }
 
+    function projectTypeLabel(value) {
+        var type = String(value || "GENERAL").toUpperCase();
+        if (type === "DEVELOPMENT") return "개발";
+        if (type === "BLOG") return "블로그";
+        return "일반";
+    }
+
+    function projectStatusLabel(value) {
+        var status = String(value || "PLANNING").toUpperCase();
+        if (status === "READY") return "준비 완료";
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "기획 중";
+    }
+
     function renderForm(project) {
         var isEdit = !!(project && project.project_id);
         var meta = [];
@@ -119,7 +135,7 @@
 
         if (isEdit) {
             meta.push("<span>프로젝트 ID " + UX.esc(String(project.project_id || "-")) + "</span>");
-            meta.push("<span>유형 " + UX.esc(String(project.project_type_code || "GENERAL")) + "</span>");
+            meta.push("<span>유형 " + UX.esc(projectTypeLabel(project.project_type_code)) + "</span>");
             meta.push("<span>태스크 " + UX.esc(String(project.task_count || 0)) + "</span>");
             meta.push("<span>마일스톤 " + UX.esc(String(project.milestone_count || 0)) + "</span>");
             meta.push("<span>멤버 " + UX.esc(String(project.member_count || 0)) + "</span>");
@@ -194,7 +210,7 @@
         if (message.indexOf("project_key") >= 0 || message.indexOf("프로젝트 키") >= 0) return "projectKey";
         if (message.indexOf("project_name") >= 0 || message.indexOf("프로젝트명") >= 0) return "projectName";
         if (message.indexOf("project_type_code") >= 0 || message.indexOf("프로젝트 유형") >= 0) return "projectTypeCode";
-        if (message.indexOf("owner_user_id") >= 0 || message.indexOf("PM") >= 0) return "btnPickManager";
+        if (message.indexOf("owner_user_id") >= 0 || message.indexOf("담당자") >= 0 || message.indexOf("PM") >= 0) return "btnPickManager";
         if (message.indexOf("start_date") >= 0 || message.indexOf("시작일") >= 0) return "projectStartDate";
         if (message.indexOf("end_date") >= 0 || message.indexOf("종료일") >= 0) return "projectEndDate";
         if (message.indexOf("origin_address") >= 0 || message.indexOf("출발지") >= 0) return "projectOriginAddress";
@@ -209,7 +225,7 @@
             return { message: "프로젝트명을 입력하세요.", fieldId: "projectName" };
         }
         if (!payload.owner_user_id) {
-            return { message: "PM을 선택하세요.", fieldId: "btnPickManager" };
+            return { message: "담당자를 선택하세요.", fieldId: "btnPickManager" };
         }
         if (payload.start_date && payload.end_date && payload.start_date > payload.end_date) {
             return { message: "시작일은 종료일보다 늦을 수 없습니다.", fieldId: "projectStartDate" };

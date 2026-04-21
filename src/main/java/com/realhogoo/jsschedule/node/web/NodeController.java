@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.node.web;
 
 import com.realhogoo.jsschedule.api.ApiResponse;
 import com.realhogoo.jsschedule.auth.AuthRequestSupport;
+import com.realhogoo.jsschedule.auth.ServicePermissionSupport;
 import com.realhogoo.jsschedule.node.service.NodeService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,16 +32,19 @@ public class NodeController {
 
     @PostMapping("/node/save.json")
     public ApiResponse<Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(nodeService.saveNode(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/node/move.json")
     public ApiResponse<Object> move(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(nodeService.moveNode(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/node/delete.json")
     public ApiResponse<Object> delete(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.DELETE);
         return ApiResponse.ok(nodeService.deleteNode(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
@@ -56,6 +60,7 @@ public class NodeController {
 
     @PostMapping("/task-type/metric/save.json")
     public ApiResponse<Object> saveTaskTypeMetrics(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(nodeService.saveTaskTypeMetrics(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 }

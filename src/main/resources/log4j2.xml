@@ -3,6 +3,8 @@
     <Properties>
         <Property name="LOG_DIR">${sys:catalina.base:-.}/logs/schedule-service</Property>
         <Property name="PATTERN">%d{HH:mm:ss.SSS} %-5level [%t] %logger{36} - [traceId=%X{traceId}] %msg%n</Property>
+        <Property name="APP_LOG_LEVEL">${env:SCHEDULE_APP_LOG_LEVEL:-info}</Property>
+        <Property name="MYBATIS_LOG_LEVEL">${env:SCHEDULE_MYBATIS_LOG_LEVEL:-info}</Property>
     </Properties>
 
     <Appenders>
@@ -23,12 +25,12 @@
     </Appenders>
 
     <Loggers>
-        <Logger name="com.realhogoo" level="debug" additivity="false">
+        <Logger name="com.realhogoo" level="${APP_LOG_LEVEL}" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
 
-        <Logger name="org.mybatis" level="info" additivity="false">
+        <Logger name="org.mybatis" level="${MYBATIS_LOG_LEVEL}" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>

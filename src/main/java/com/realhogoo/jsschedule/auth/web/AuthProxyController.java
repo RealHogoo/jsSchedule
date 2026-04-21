@@ -21,9 +21,10 @@ public class AuthProxyController {
     }
 
     @PostMapping("/login.json")
-    public Map<String, Object> login(@RequestBody(required = false) Map<String, Object> body, HttpServletResponse response) {
+    public Map<String, Object> login(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request, HttpServletResponse response) {
         Map<String, Object> result = adminServiceClient.login(body);
-        syncCookies(result, response);
+        applyNoStore(response);
+        syncCookies(result, request, response);
         return result;
     }
 
@@ -41,7 +42,8 @@ public class AuthProxyController {
             }
         }
         Map<String, Object> result = adminServiceClient.refresh(payload);
-        syncCookies(result, response);
+        applyNoStore(response);
+        syncCookies(result, request, response);
         return result;
     }
 
@@ -57,7 +59,8 @@ public class AuthProxyController {
         HttpServletResponse response
     ) {
         Map<String, Object> result = adminServiceClient.logout(resolveToken(authorization, request));
-        AuthCookieSupport.clearAuthCookies(response);
+        applyNoStore(response);
+        AuthCookieSupport.clearAuthCookies(request, response);
         return result;
     }
 
@@ -84,25 +87,32 @@ public class AuthProxyController {
     }
 
     @SuppressWarnings("unchecked")
-    private void syncCookies(Map<String, Object> result, HttpServletResponse response) {
+    private void syncCookies(Map<String, Object> result, HttpServletRequest request, HttpServletResponse response) {
         if (!(result != null && Boolean.TRUE.equals(result.get("ok")))) {
-            AuthCookieSupport.clearAuthCookies(response);
+            AuthCookieSupport.clearAuthCookies(request, response);
             return;
         }
 
         Object dataObj = result.get("data");
         if (!(dataObj instanceof Map)) {
-            AuthCookieSupport.clearAuthCookies(response);
+            AuthCookieSupport.clearAuthCookies(request, response);
             return;
         }
 
         Map<String, Object> data = (Map<String, Object>) dataObj;
         AuthCookieSupport.writeAuthCookies(
+            request,
             response,
             stringValue(data.get("token")),
             stringValue(data.get("refresh_token")),
             stringValue(data.get("session_id"))
         );
+    }
+
+    private void applyNoStore(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
     }
 
     private String stringValue(Object value) {

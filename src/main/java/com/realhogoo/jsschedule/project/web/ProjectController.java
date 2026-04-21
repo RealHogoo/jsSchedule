@@ -2,6 +2,7 @@ package com.realhogoo.jsschedule.project.web;
 
 import com.realhogoo.jsschedule.api.ApiResponse;
 import com.realhogoo.jsschedule.auth.AuthRequestSupport;
+import com.realhogoo.jsschedule.auth.ServicePermissionSupport;
 import com.realhogoo.jsschedule.project.service.ProjectService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +32,7 @@ public class ProjectController {
 
     @PostMapping("/project/save.json")
     public ApiResponse<Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(projectService.saveProject(body), request);
     }
 

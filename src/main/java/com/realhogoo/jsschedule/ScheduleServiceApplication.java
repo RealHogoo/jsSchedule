@@ -6,7 +6,9 @@ import com.realhogoo.jsschedule.auth.jwt.JwtAuthFilter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication(scanBasePackages = "com.realhogoo.jsschedule")
@@ -47,7 +49,13 @@ public class ScheduleServiceApplication {
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(
+        @Value("${admin-service.connect-timeout-ms:3000}") int connectTimeoutMs,
+        @Value("${admin-service.read-timeout-ms:5000}") int readTimeoutMs
+    ) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
     }
 }

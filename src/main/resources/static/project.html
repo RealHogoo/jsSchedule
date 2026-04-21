@@ -76,15 +76,15 @@
                                 <label for="filterStatus">상태</label>
                                 <select id="filterStatus" class="input">
                                     <option value="">전체</option>
-                                    <option value="READY">READY</option>
-                                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                                    <option value="DONE">DONE</option>
-                                    <option value="HOLD">HOLD</option>
+                                    <option value="READY">준비 완료</option>
+                                    <option value="IN_PROGRESS">진행 중</option>
+                                    <option value="DONE">완료</option>
+                                    <option value="HOLD">보류</option>
                                 </select>
                             </div>
                             <div class="form-item">
-                                <label for="filterOwner">PM</label>
-                                <input id="filterOwner" class="input" type="text" placeholder="owner_user_id">
+                                <label for="filterOwner">담당자</label>
+                                <input id="filterOwner" class="input" type="text" placeholder="담당자 아이디">
                             </div>
                             <div class="btns filter-actions">
                                 <button type="button" id="btnSearch" class="btn btn-primary">조회</button>
@@ -111,7 +111,7 @@
                                         <th>프로젝트</th>
                                         <th>상태</th>
                                         <th>기간</th>
-                                        <th>PM</th>
+                                        <th>담당자</th>
                                         <th>태스크</th>
                                         <th>마일스톤</th>
                                     </tr>

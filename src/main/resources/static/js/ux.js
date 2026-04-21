@@ -102,21 +102,17 @@
     }
 
     function authHeaders() {
-        var headers = {
+        return {
             "Content-Type": "application/json",
             "Accept": "application/json"
         };
-        var token = localGet("JWT", "");
-        if (token) {
-            headers.Authorization = "Bearer " + token;
-        }
-        return headers;
     }
 
     function requestJson(url, body, options) {
         var opts = options || {};
         return fetch(url, {
             method: opts.method || "POST",
+            credentials: opts.credentials || "same-origin",
             headers: opts.headers || authHeaders(),
             body: JSON.stringify(body || {})
         }).then(function (response) {

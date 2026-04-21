@@ -3,6 +3,7 @@ package com.realhogoo.jsschedule.auth.jwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsschedule.api.ApiCode;
 import com.realhogoo.jsschedule.api.ApiResponse;
+import com.realhogoo.jsschedule.auth.ServicePermissionSupport;
 import com.realhogoo.jsschedule.auth.web.AuthCookieSupport;
 import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import org.springframework.web.context.WebApplicationContext;
@@ -19,6 +20,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,9 +64,15 @@ public class JwtAuthFilter implements Filter {
             return;
         }
 
-        String token = resolveToken(httpRequest);
+        String authorizationToken = resolveBearerToken(httpRequest);
+        String cookieToken = normalizeToken(AuthCookieSupport.readCookie(httpRequest, AuthCookieSupport.ACCESS_TOKEN_COOKIE));
+        String token = authorizationToken.isEmpty() ? cookieToken : authorizationToken;
         if (token.isEmpty()) {
             writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", httpRequest));
+            return;
+        }
+        if (authorizationToken.isEmpty() && cookieToken != null && isCrossSiteRequest(httpRequest)) {
+            writeJson(httpResponse, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "cross-site cookie request blocked", httpRequest));
             return;
         }
 
@@ -85,6 +93,7 @@ public class JwtAuthFilter implements Filter {
             httpRequest.setAttribute("session_id", stringValue(currentUser.get("session_id")));
             List<String> roles = rolesValue(currentUser.get("roles"));
             httpRequest.setAttribute("roles", roles == null ? Collections.emptyList() : roles);
+            httpRequest.setAttribute("service_permissions", ServicePermissionSupport.parsePermissions(currentUser.get("service_permissions")));
             httpRequest.setAttribute("access_token", token);
 
             chain.doFilter(request, response);
@@ -136,7 +145,7 @@ public class JwtAuthFilter implements Filter {
         return contextPath != null && !contextPath.isEmpty() ? uri.substring(contextPath.length()) : uri;
     }
 
-    private String resolveToken(HttpServletRequest request) {
+    private String resolveBearerToken(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization != null && !authorization.isBlank() && authorization.startsWith("Bearer ")) {
             String token = authorization.substring("Bearer ".length()).trim();
@@ -144,9 +153,11 @@ public class JwtAuthFilter implements Filter {
                 return token;
             }
         }
+        return "";
+    }
 
-        String cookieToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
-        return cookieToken == null ? "" : cookieToken;
+    private String normalizeToken(String token) {
+        return token == null ? "" : token.trim();
     }
 
     private String stringValue(Object value) {
@@ -159,5 +170,74 @@ public class JwtAuthFilter implements Filter {
             return (List<String>) value;
         }
         return Collections.emptyList();
+    }
+
+    private boolean isCrossSiteRequest(HttpServletRequest request) {
+        String secFetchSite = request.getHeader("Sec-Fetch-Site");
+        if (secFetchSite != null) {
+            String normalized = secFetchSite.trim().toLowerCase();
+            if ("cross-site".equals(normalized)) {
+                return true;
+            }
+            if ("same-origin".equals(normalized) || "same-site".equals(normalized) || "none".equals(normalized)) {
+                return false;
+            }
+        }
+        return !isSameOrigin(request, request.getHeader("Origin")) || !isSameOrigin(request, request.getHeader("Referer"));
+    }
+
+    private boolean isSameOrigin(HttpServletRequest request, String source) {
+        URI uri;
+        if (source == null || source.trim().isEmpty()) {
+            return true;
+        }
+        try {
+            uri = URI.create(source.trim());
+        } catch (Exception exception) {
+            return false;
+        }
+        String sourceScheme = uri.getScheme();
+        String sourceHost = uri.getHost();
+        int sourcePort = uri.getPort();
+        String requestScheme = forwardedScheme(request);
+        String requestHost = forwardedHost(request);
+        int requestPort = forwardedPort(request);
+        if (sourceScheme == null || sourceHost == null) {
+            return false;
+        }
+        return sourceScheme.equalsIgnoreCase(requestScheme)
+            && sourceHost.equalsIgnoreCase(requestHost)
+            && normalizePort(sourcePort, sourceScheme) == normalizePort(requestPort, requestScheme);
+    }
+
+    private String forwardedScheme(HttpServletRequest request) {
+        String value = request.getHeader("X-Forwarded-Proto");
+        return value == null || value.trim().isEmpty() ? request.getScheme() : value.trim();
+    }
+
+    private String forwardedHost(HttpServletRequest request) {
+        String value = request.getHeader("X-Forwarded-Host");
+        if (value == null || value.trim().isEmpty()) {
+            return request.getServerName();
+        }
+        return value.split(",")[0].trim().split(":")[0].trim();
+    }
+
+    private int forwardedPort(HttpServletRequest request) {
+        String forwardedPort = request.getHeader("X-Forwarded-Port");
+        if (forwardedPort != null && !forwardedPort.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(forwardedPort.trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return request.getServerPort();
+    }
+
+    private int normalizePort(int port, String scheme) {
+        if (port > 0) {
+            return port;
+        }
+        return "https".equalsIgnoreCase(scheme) ? 443 : 80;
     }
 }

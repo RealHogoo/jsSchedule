@@ -3,6 +3,9 @@ package com.realhogoo.jsschedule.auth.web;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public final class AuthCookieSupport {
     public static final String ACCESS_TOKEN_COOKIE = "ACCESS_TOKEN";
@@ -16,16 +19,16 @@ public final class AuthCookieSupport {
     private AuthCookieSupport() {
     }
 
-    public static void writeAuthCookies(HttpServletResponse response, String accessToken, String refreshToken, String sessionId) {
-        addCookie(response, ACCESS_TOKEN_COOKIE, accessToken, ACCESS_TOKEN_MAX_AGE);
-        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, REFRESH_TOKEN_MAX_AGE);
-        addCookie(response, SESSION_ID_COOKIE, sessionId, SESSION_ID_MAX_AGE);
+    public static void writeAuthCookies(HttpServletRequest request, HttpServletResponse response, String accessToken, String refreshToken, String sessionId) {
+        addCookie(request, response, ACCESS_TOKEN_COOKIE, accessToken, ACCESS_TOKEN_MAX_AGE);
+        addCookie(request, response, REFRESH_TOKEN_COOKIE, refreshToken, REFRESH_TOKEN_MAX_AGE);
+        addCookie(request, response, SESSION_ID_COOKIE, sessionId, SESSION_ID_MAX_AGE);
     }
 
-    public static void clearAuthCookies(HttpServletResponse response) {
-        addCookie(response, ACCESS_TOKEN_COOKIE, "", 0);
-        addCookie(response, REFRESH_TOKEN_COOKIE, "", 0);
-        addCookie(response, SESSION_ID_COOKIE, "", 0);
+    public static void clearAuthCookies(HttpServletRequest request, HttpServletResponse response) {
+        addCookie(request, response, ACCESS_TOKEN_COOKIE, "", 0);
+        addCookie(request, response, REFRESH_TOKEN_COOKIE, "", 0);
+        addCookie(request, response, SESSION_ID_COOKIE, "", 0);
     }
 
     public static String readCookie(HttpServletRequest request, String name) {
@@ -41,16 +44,37 @@ public final class AuthCookieSupport {
         for (Cookie cookie : cookies) {
             if (cookie != null && name.equals(cookie.getName())) {
                 String value = cookie.getValue();
-                return value == null || value.trim().isEmpty() ? null : value.trim();
+                if (value == null || value.trim().isEmpty()) {
+                    return null;
+                }
+                return URLDecoder.decode(value.trim(), StandardCharsets.UTF_8);
             }
         }
         return null;
     }
 
-    private static void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
+    private static void addCookie(HttpServletRequest request, HttpServletResponse response, String name, String value, int maxAge) {
         StringBuilder builder = new StringBuilder();
-        builder.append(name).append("=").append(value == null ? "" : value).append("; Path=/; Max-Age=").append(maxAge);
-        builder.append("; SameSite=Lax; HttpOnly");
+        builder.append(name)
+            .append("=")
+            .append(URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8))
+            .append("; Path=/; Max-Age=")
+            .append(maxAge);
+        builder.append("; SameSite=Strict; HttpOnly");
+        if (isSecureRequest(request)) {
+            builder.append("; Secure");
+        }
         response.addHeader("Set-Cookie", builder.toString());
+    }
+
+    private static boolean isSecureRequest(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        if (request.isSecure()) {
+            return true;
+        }
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        return forwardedProto != null && "https".equalsIgnoreCase(forwardedProto.trim());
     }
 }

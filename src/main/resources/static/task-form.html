@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>태스크</title>
-    <link rel="stylesheet" href="/css/common.css?v=20260415-map-1">
+    <link rel="stylesheet" href="/css/common.css?v=20260421-1">
 </head>
 <body class="schedule-page task-page-compact">
     <main class="workspace-shell">
@@ -119,6 +119,10 @@
 
                                 <div class="form-item">
                                     <label for="taskParentTaskId">상위 태스크</label>
+                                    <details class="page-help inline-help field-help-inline">
+                                        <summary><span class="page-help-toggle">?</span></summary>
+                                        <div class="page-help-body">하위 태스크는 루트를 포함해 최대 4단계까지만 등록할 수 있습니다.</div>
+                                    </details>
                                     <select id="taskParentTaskId" class="input">
                                         <option value="">상위 태스크 없음</option>
                                     </select>
@@ -129,19 +133,19 @@
                                     <div class="form-item">
                                         <label for="taskStatus">상태</label>
                                         <select id="taskStatus" class="input">
-                                            <option value="TODO">TODO</option>
-                                            <option value="IN_PROGRESS">IN_PROGRESS</option>
-                                            <option value="DONE">DONE</option>
-                                            <option value="HOLD">HOLD</option>
+                                            <option value="TODO">할 일</option>
+                                            <option value="IN_PROGRESS">진행 중</option>
+                                            <option value="DONE">완료</option>
+                                            <option value="HOLD">보류</option>
                                         </select>
                                     </div>
 
                                     <div class="form-item">
                                         <label for="taskPriority">우선순위</label>
                                         <select id="taskPriority" class="input">
-                                            <option value="HIGH">HIGH</option>
-                                            <option value="MEDIUM">MEDIUM</option>
-                                            <option value="LOW">LOW</option>
+                                            <option value="HIGH">높음</option>
+                                            <option value="MEDIUM">보통</option>
+                                            <option value="LOW">낮음</option>
                                         </select>
                                     </div>
                                 </div>
@@ -173,6 +177,10 @@
                                 <div id="taskBlogFieldSection" class="detail-form-grid" hidden>
                                     <div class="form-item blog-address-item">
                                         <label for="taskUrl">방문 주소</label>
+                                        <details class="page-help inline-help field-help-inline">
+                                            <summary><span class="page-help-toggle">?</span></summary>
+                                            <div class="page-help-body">방문 주소를 선택하면 프로젝트의 기본 출발지를 기준으로 예상 이동 시간과 거리를 계산합니다.</div>
+                                        </details>
                                         <div class="picker-row">
                                             <input id="taskUrl" class="input" type="text" placeholder="방문 주소를 입력하세요">
                                             <button type="button" id="btnSearchTaskAddress" class="btn">주소 검색</button>
@@ -254,41 +262,8 @@
         </div>
     </div>
 
-    <div id="blogMapModal" class="modal-backdrop" hidden>
-        <div class="modal-panel map-modal-panel">
-            <div class="detail-head">
-                <div>
-                    <div class="panel-title">방문 지도</div>
-                    <p id="blogMapMeta" class="table-copy">프로젝트 기본 출발지와 방문 주소 기준 이동 정보입니다.</p>
-                </div>
-                <button type="button" id="btnCloseBlogMapModal" class="btn">닫기</button>
-            </div>
-
-            <div id="blogMapSummary" class="blog-map-summary" hidden>
-                <div class="blog-map-summary-card">
-                    <span class="blog-map-summary-label">출발지</span>
-                    <strong id="blogMapOrigin">-</strong>
-                </div>
-                <div class="blog-map-summary-card">
-                    <span class="blog-map-summary-label">방문지</span>
-                    <strong id="blogMapDestination">-</strong>
-                </div>
-                <div class="blog-map-summary-card is-metric">
-                    <span class="blog-map-summary-label">예상 시간</span>
-                    <strong id="blogMapDuration">-</strong>
-                </div>
-                <div class="blog-map-summary-card is-metric">
-                    <span class="blog-map-summary-label">이동 거리</span>
-                    <strong id="blogMapDistance">-</strong>
-                </div>
-            </div>
-            <div id="blogMapCanvas" class="blog-map-canvas"></div>
-            <div id="blogMapEmpty" class="detail-empty" hidden>지도를 표시할 수 없습니다.</div>
-        </div>
-    </div>
-
-    <script src="/js/ux.js?v=20260415-map-1"></script>
-    <script src="/js/address-search.js?v=20260417-juso-1"></script>
-    <script src="/js/task-form.js?v=20260417-juso-1"></script>
+    <script src="/js/ux.js?v=20260421-1"></script>
+    <script src="/js/address-search.js?v=20260421-1"></script>
+    <script src="/js/task-form.js?v=20260421-1"></script>
 </body>
 </html>

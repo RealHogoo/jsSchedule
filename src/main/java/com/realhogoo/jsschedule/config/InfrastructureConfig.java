@@ -59,12 +59,8 @@ public class InfrastructureConfig implements EnvironmentAware {
 
     @Bean
     public JwtProvider jwtProvider() {
-        String secret = environment.getProperty("jwt.secret");
-        if (secret == null || secret.trim().isEmpty()) {
-            secret = "schedule-service-local-fallback-secret-2026";
-        }
         return new JwtProvider(
-            secret,
+            requiredProperty("jwt.secret"),
             environment.getProperty("jwt.issuer", "jsAdmin")
         );
     }

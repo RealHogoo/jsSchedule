@@ -35,7 +35,7 @@ public class HealthController {
 
     @PostMapping("/health/status.json")
     public Map<String, Object> status() {
-        return ok(isDatabaseReady() ? "UP" : "DEGRADED", databaseStatus());
+        return ok(isDatabaseReady() ? "UP" : "DEGRADED", null);
     }
 
     private boolean isDatabaseReady() {

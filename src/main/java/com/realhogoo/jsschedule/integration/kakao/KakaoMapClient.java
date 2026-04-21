@@ -13,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -31,29 +32,26 @@ public class KakaoMapClient {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String restApiKey;
-    private final String javascriptKey;
 
     public KakaoMapClient(
         ObjectMapper objectMapper,
         @Value("${kakao.rest-api-key:}") String restApiKey,
-        @Value("${kakao.javascript-key:}") String javascriptKey
+        @Value("${kakao.connect-timeout-ms:3000}") long connectTimeoutMs,
+        @Value("${kakao.read-timeout-ms:5000}") long readTimeoutMs
     ) {
-        this.httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+        this.httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
         this.objectMapper = objectMapper;
         this.restApiKey = restApiKey == null ? "" : restApiKey.trim();
-        this.javascriptKey = javascriptKey == null ? "" : javascriptKey.trim();
+        this.requestTimeout = Duration.ofMillis(readTimeoutMs);
     }
+
+    private final Duration requestTimeout;
 
     public boolean isConfigured() {
         return !restApiKey.isEmpty();
-    }
-
-    public boolean isJavascriptConfigured() {
-        return !javascriptKey.isEmpty();
-    }
-
-    public String getJavascriptKey() {
-        return javascriptKey;
     }
 
     public Map<String, Object> searchAddresses(String keyword, int currentPage, int countPerPage) {
@@ -292,7 +290,9 @@ public class KakaoMapClient {
 
     private Map<String, Object> exchange(String uri, HttpEntity<?> entity) {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(uri)).GET();
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(uri))
+                .timeout(requestTimeout)
+                .GET();
             HttpHeaders headers = entity.getHeaders();
             for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
                 for (String value : entry.getValue()) {

@@ -12,11 +12,8 @@
         tasks: [],
         selectedTaskId: "",
         taskMode: "list",
-        mapConfig: null,
         blogRouteInfo: null,
-        blogRouteTimer: null,
-        blogMapScriptPromise: null,
-        blogMapInstance: null
+        blogRouteTimer: null
     };
     var MAX_TASK_DEPTH = 3;
     var taskFormHome = null;
@@ -30,6 +27,33 @@
     function isBlogProject() { return projectTypeCode() === "BLOG"; }
     function projectOriginAddress() { return state.project && state.project.origin_address ? String(state.project.origin_address) : ""; }
     function setHidden(el, hidden) { if (el) el.hidden = !!hidden; }
+    function projectTypeLabel(value) {
+        var type = String(value || "GENERAL").toUpperCase();
+        if (type === "DEVELOPMENT") return "개발";
+        if (type === "BLOG") return "블로그";
+        return "일반";
+    }
+    function projectStatusLabel(value) {
+        var status = String(value || "PLANNING").toUpperCase();
+        if (status === "READY") return "준비 완료";
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "기획 중";
+    }
+    function taskStatusLabel(value) {
+        var status = String(value || "TODO").toUpperCase();
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "할 일";
+    }
+    function priorityLabel(value) {
+        var priority = String(value || "MEDIUM").toUpperCase();
+        if (priority === "HIGH") return "높음";
+        if (priority === "LOW") return "낮음";
+        return "보통";
+    }
 
     function setMessage(targetId, text, type) {
         var target = byId(targetId);
@@ -176,9 +200,9 @@
         byId("taskProjectId").value = state.projectId;
         byId("taskProjectName").value = state.project.project_name || "";
         byId("projectSummary").innerHTML = [
-            "<span>유형 " + esc(state.project.project_type_code || "GENERAL") + "</span>",
-            "<span>상태 " + esc(state.project.project_status || "-") + "</span>",
-            "<span>PM " + esc(state.project.owner_user_id || "-") + "</span>",
+            "<span>유형 " + esc(projectTypeLabel(state.project.project_type_code)) + "</span>",
+            "<span>상태 " + esc(projectStatusLabel(state.project.project_status)) + "</span>",
+            "<span>담당자 " + esc(state.project.owner_user_id || "-") + "</span>",
             "<span>기간 " + esc(formatPeriod(state.project.start_date, state.project.end_date)) + "</span>",
             "<span>태스크 " + esc(String(state.project.task_count || 0)) + "</span>",
             projectOriginAddress() ? "<span>기본 출발지 " + esc(projectOriginAddress()) + "</span>" : ""
@@ -217,18 +241,6 @@
         byId("btnOpenBlogMap").hidden = !(info && info.available === true);
     }
 
-    function renderBlogMapSummary(info) {
-        var summary = byId("blogMapSummary");
-        var origin = info && info.origin ? info.origin.address || projectOriginAddress() : projectOriginAddress();
-        var destination = info && info.destination ? info.destination.address || byId("taskUrl").value.trim() : byId("taskUrl").value.trim();
-        if (!summary) return;
-        summary.hidden = !(info && info.available === true);
-        byId("blogMapOrigin").textContent = origin || "-";
-        byId("blogMapDestination").textContent = destination || "-";
-        byId("blogMapDuration").textContent = info && info.available === true ? formatDuration(info.duration_seconds) : "-";
-        byId("blogMapDistance").textContent = info && info.available === true ? formatDistance(info.distance_meters) : "-";
-    }
-
     function kakaoLinkPart(name, latitude, longitude) {
         return encodeURIComponent(name || "지점") + "," + encodeURIComponent(String(latitude)) + "," + encodeURIComponent(String(longitude));
     }
@@ -249,102 +261,6 @@
             + "/"
             + kakaoLinkPart(destination, Number(info.destination.latitude), Number(info.destination.longitude));
         global.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    function loadMapConfig() {
-        if (state.mapConfig) return Promise.resolve(state.mapConfig);
-        return UX.requestJson("/map/config.json", {}).then(function (response) {
-            state.mapConfig = response && response.ok === true ? (response.data || {}) : { enabled: false };
-            return state.mapConfig;
-        }).catch(function () {
-            state.mapConfig = { enabled: false };
-            return state.mapConfig;
-        });
-    }
-
-    function ensureKakaoMapSdk() {
-        return loadMapConfig().then(function (config) {
-            return new Promise(function (resolve, reject) {
-                if (!config || !config.enabled || !config.kakao_javascript_key) {
-                    reject(new Error("Kakao map not configured"));
-                    return;
-                }
-                if (global.kakao && global.kakao.maps) {
-                    global.kakao.maps.load(function () { resolve(global.kakao); });
-                    return;
-                }
-                if (state.blogMapScriptPromise) {
-                    state.blogMapScriptPromise.then(resolve).catch(reject);
-                    return;
-                }
-                state.blogMapScriptPromise = new Promise(function (innerResolve, innerReject) {
-                    var script = document.createElement("script");
-                    script.src = "https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=" + encodeURIComponent(config.kakao_javascript_key);
-                    script.onload = function () { global.kakao.maps.load(function () { innerResolve(global.kakao); }); };
-                    script.onerror = function () { innerReject(new Error("Failed to load Kakao map")); };
-                    document.head.appendChild(script);
-                });
-                state.blogMapScriptPromise.then(resolve).catch(reject);
-            });
-        });
-    }
-    function renderBlogMapModal() {
-        var info = state.blogRouteInfo;
-        var mapTarget = byId("blogMapCanvas");
-        var empty = byId("blogMapEmpty");
-        renderBlogMapSummary(info);
-        if (!info || info.available !== true) {
-            setHidden(mapTarget, true);
-            setHidden(empty, false);
-            empty.textContent = "지도를 표시할 수 없습니다.";
-            return Promise.resolve();
-        }
-        return ensureKakaoMapSdk().then(function (kakao) {
-            var bounds = new kakao.maps.LatLngBounds();
-            var map = new kakao.maps.Map(mapTarget, {
-                center: new kakao.maps.LatLng(Number(info.destination.latitude), Number(info.destination.longitude)),
-                level: 5
-            });
-            var originLatLng = new kakao.maps.LatLng(Number(info.origin.latitude), Number(info.origin.longitude));
-            var destinationLatLng = new kakao.maps.LatLng(Number(info.destination.latitude), Number(info.destination.longitude));
-            var pathPoints = [];
-            state.blogMapInstance = map;
-            setHidden(mapTarget, false);
-            setHidden(empty, true);
-            bounds.extend(originLatLng);
-            bounds.extend(destinationLatLng);
-            new kakao.maps.Marker({ map: map, position: originLatLng, title: "출발지" });
-            new kakao.maps.Marker({ map: map, position: destinationLatLng, title: "방문지" });
-            (Array.isArray(info.path) ? info.path : []).forEach(function (point) {
-                if (!point) return;
-                var latLng = new kakao.maps.LatLng(Number(point.latitude), Number(point.longitude));
-                pathPoints.push(latLng);
-                bounds.extend(latLng);
-            });
-            if (pathPoints.length >= 2) {
-                new kakao.maps.Polyline({
-                    map: map,
-                    path: pathPoints,
-                    strokeWeight: 5,
-                    strokeColor: "#0f766e",
-                    strokeOpacity: 0.9,
-                    strokeStyle: "solid"
-                });
-            }
-            map.setBounds(bounds);
-            byId("blogMapMeta").textContent = "출발지 기준 예상 이동 시간 " + formatDuration(info.duration_seconds) + ", 이동 거리 " + formatDistance(info.distance_meters) + "입니다.";
-        }).catch(function () {
-            setHidden(mapTarget, true);
-            setHidden(empty, false);
-            empty.textContent = "지도를 불러오지 못했습니다. 이동 요약만 확인할 수 있습니다.";
-        });
-    }
-
-    function toggleBlogMapModal(open) {
-        var modal = byId("blogMapModal");
-        if (!modal) return;
-        modal.hidden = !open;
-        if (open) renderBlogMapModal();
     }
 
     function lookupBlogRouteInfo() {
@@ -458,7 +374,7 @@
             var summaryValue = isBlogProject() ? "업체 부담금 " + esc(task.support_amount != null ? task.support_amount : "0") : "진행률 " + esc(formatProgress(task.progress_rate));
             rows.push("<article class=\"task-card" + (selected ? " is-expanded" : "") + "\" data-task-id=\"" + esc(taskId) + "\">"
                 + "<div class=\"task-card-main\" style=\"--task-tree-indent:" + esc(String(indent)) + "px\">"
-                + "<div class=\"task-card-head\"><div class=\"task-card-title-wrap\"><span class=\"" + iconClass + "\" aria-hidden=\"true\"></span><div class=\"task-card-title-block\"><strong class=\"task-card-title\">" + esc(task.task_title || "-") + "</strong><span class=\"task-card-sub\">" + esc(relationLabel) + "</span></div></div><div class=\"task-card-badges\"><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(task.task_status || "-") + "</span><span class=\"status-chip priority-" + esc(String(task.priority || "").toLowerCase()) + "\">" + esc(task.priority || "-") + "</span></div></div>"
+                + "<div class=\"task-card-head\"><div class=\"task-card-title-wrap\"><span class=\"" + iconClass + "\" aria-hidden=\"true\"></span><div class=\"task-card-title-block\"><strong class=\"task-card-title\">" + esc(task.task_title || "-") + "</strong><span class=\"task-card-sub\">" + esc(relationLabel) + "</span></div></div><div class=\"task-card-badges\"><span class=\"status-chip status-" + esc(String(task.task_status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")) + "\">" + esc(taskStatusLabel(task.task_status)) + "</span><span class=\"status-chip priority-" + esc(String(task.priority || "").toLowerCase()) + "\">" + esc(priorityLabel(task.priority)) + "</span></div></div>"
                 + "<div class=\"task-card-meta\"><span>담당자 " + esc(task.assignee_user_id || "-") + "</span><span>기간 " + esc(formatPeriod(task.start_date, task.due_date)) + "</span><span>" + summaryValue + "</span></div>"
                 + "<div class=\"task-card-actions\"><button type=\"button\" class=\"task-edit-action btn" + (selected ? " is-expanded" : "") + "\" data-task-id=\"" + esc(taskId) + "\">" + (selected ? "접기" : "상세") + "</button></div></div>"
                 + (selected ? buildTaskDetailRow() : "") + "</article>");
@@ -494,7 +410,7 @@
         byId("taskDescription").value = task && task.description ? String(task.description) : "";
         applyTaskFieldMode(task);
         byId("taskParentTaskId").disabled = false;
-        byId("taskMeta").innerHTML = task && task.task_id ? "<span>태스크 ID " + esc(task.task_id) + "</span><span>유형 " + esc(projectTypeCode()) + "</span><span>프로젝트 " + esc(state.project && state.project.project_name || "-") + "</span><span>상위 태스크 " + esc(task.parent_task_title || "-") + "</span>" : "<span>선택한 프로젝트 아래에 새 태스크를 등록합니다.</span>";
+        byId("taskMeta").innerHTML = task && task.task_id ? "<span>태스크 ID " + esc(task.task_id) + "</span><span>유형 " + esc(projectTypeLabel(projectTypeCode())) + "</span><span>프로젝트 " + esc(state.project && state.project.project_name || "-") + "</span><span>상위 태스크 " + esc(task.parent_task_title || "-") + "</span>" : "<span>선택한 프로젝트 아래에 새 태스크를 등록합니다.</span>";
         if (isBlogProject() && projectOriginAddress()) byId("taskMeta").innerHTML += "<span>기본 출발지 " + esc(projectOriginAddress()) + "</span>";
         setTaskFormMessage("", "");
         renderTaskTable();
@@ -507,7 +423,6 @@
         setTaskMode("list");
         renderTaskTable();
         setTaskFormMessage("", "");
-        toggleBlogMapModal(false);
     }
 
     function createTaskPayload() {
@@ -670,8 +585,6 @@
             });
         });
         UX.bindOnce(byId("btnOpenBlogMap"), "click", function () { openBlogRouteInKakaoMap(); });
-        UX.bindOnce(byId("btnCloseBlogMapModal"), "click", function () { toggleBlogMapModal(false); });
-        UX.bindOnce(byId("blogMapModal"), "click", function (event) { if (event.target && event.target.id === "blogMapModal") toggleBlogMapModal(false); });
         ["taskTitle", "taskParentTaskId", "taskStartDate", "taskDueDate", "taskActualStartDate", "taskActualEndDate", "taskUrl", "taskSupportAmount", "taskActualAmount", "taskProjectName", "taskAssigneeDisplay", "btnPickAssignee"].forEach(function (id) {
             var target = byId(id);
             if (!target) return;
@@ -680,14 +593,8 @@
             target.addEventListener("change", clearFieldHighlight);
             target.addEventListener("click", clearFieldHighlight);
         });
-        global.addEventListener("resize", function () {
-            syncSidebarMode();
-            if (state.blogMapInstance && !byId("blogMapModal").hidden && global.kakao && global.kakao.maps) {
-                global.kakao.maps.event.trigger(state.blogMapInstance, "resize");
-            }
-        });
+        global.addEventListener("resize", syncSidebarMode);
         global.addEventListener("keydown", function (event) {
-            if (event.key === "Escape" && !byId("blogMapModal").hidden) { toggleBlogMapModal(false); return; }
             if (event.key === "Escape" && !byId("assigneeModal").hidden) { toggleAssigneeModal(false); return; }
             if (event.key === "Escape" && state.taskMode === "form") backToTaskList();
         });

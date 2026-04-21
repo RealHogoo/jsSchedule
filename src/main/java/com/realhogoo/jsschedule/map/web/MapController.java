@@ -20,11 +20,9 @@ public class MapController {
     }
 
     @PostMapping("/map/config.json")
-    public ApiResponse<Object> config(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+    public ApiResponse<Object> config(HttpServletRequest request) {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("enabled", kakaoMapClient.isJavascriptConfigured());
         data.put("search_enabled", kakaoMapClient.isConfigured());
-        data.put("kakao_javascript_key", kakaoMapClient.getJavascriptKey());
         return ApiResponse.ok(data, request);
     }
 

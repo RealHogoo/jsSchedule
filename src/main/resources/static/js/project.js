@@ -63,6 +63,14 @@
     function formatPeriod(startDate, endDate) {
         return (startDate ? String(startDate) : "-") + " ~ " + (endDate ? String(endDate) : "-");
     }
+    function projectStatusLabel(value) {
+        var status = String(value || "PLANNING").toUpperCase();
+        if (status === "READY") return "준비 완료";
+        if (status === "IN_PROGRESS") return "진행 중";
+        if (status === "DONE") return "완료";
+        if (status === "HOLD") return "보류";
+        return "기획 중";
+    }
 
     function renderTable() {
         var target = UX.byId("projectRows");
@@ -80,7 +88,7 @@
                 + "<span class=\"row-title\">" + UX.esc(project.project_name || "-") + "</span>"
                 + "<span class=\"row-sub\">" + UX.esc(project.project_key || "-") + "</span>"
                 + "</button></td>"
-                + "<td><span class=\"status-chip " + UX.esc(statusClass(project.project_status)) + "\">" + UX.esc(project.project_status || "-") + "</span></td>"
+                + "<td><span class=\"status-chip " + UX.esc(statusClass(project.project_status)) + "\">" + UX.esc(projectStatusLabel(project.project_status)) + "</span></td>"
                 + "<td>" + UX.esc(formatPeriod(project.start_date, project.end_date)) + "</td>"
                 + "<td>" + UX.esc(project.owner_user_id || "-") + "</td>"
                 + "<td>" + UX.esc(String(project.task_count || 0)) + "</td>"

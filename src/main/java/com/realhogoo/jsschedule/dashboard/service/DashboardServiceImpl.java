@@ -26,14 +26,14 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public Map<String, Object> getSummary(Map<String, Object> params, String accessToken, String viewerUserId, List<String> viewerRoles) {
-        log.info("JOB_START dashboard.summary");
+        log.debug("JOB_START dashboard.summary");
         try {
             Map<String, Object> query = accessParams(params, viewerUserId, viewerRoles);
             Map<String, Object> summary = dashboardMapper.selectSummary(query);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
             response.put("summary", summary);
             response.put("current_user", adminServiceClient.fetchCurrentUser(accessToken));
-            log.info("JOB_END dashboard.summary");
+            log.debug("JOB_END dashboard.summary");
             return response;
         } catch (RuntimeException exception) {
             log.error("JOB_FAIL dashboard.summary", exception);
@@ -43,7 +43,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public Map<String, Object> getDetail(Map<String, Object> params, String accessToken, String viewerUserId, List<String> viewerRoles) {
-        log.info("JOB_START dashboard.detail");
+        log.debug("JOB_START dashboard.detail");
         try {
             Map<String, Object> safeParams = accessParams(params, viewerUserId, viewerRoles);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
@@ -51,7 +51,7 @@ public class DashboardServiceImpl implements DashboardService {
             response.put("project_stats", dashboardMapper.selectProjectStats(safeParams));
             response.put("monthly_stats", dashboardMapper.selectMonthlyStats(safeParams));
             response.put("current_user", adminServiceClient.fetchCurrentUser(accessToken));
-            log.info("JOB_END dashboard.detail");
+            log.debug("JOB_END dashboard.detail");
             return response;
         } catch (RuntimeException exception) {
             log.error("JOB_FAIL dashboard.detail", exception);

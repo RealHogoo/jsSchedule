@@ -61,7 +61,7 @@ public class KakaoMapClient {
         }
 
         Map<String, Object> addressBody = searchAddressDocuments(query, currentPage, countPerPage);
-        log.info(
+        log.debug(
             "KAKAO_ADDRESS_SEARCH query='{}' docs={} meta={}",
             query,
             listSize(addressBody.get("documents")),
@@ -71,7 +71,7 @@ public class KakaoMapClient {
         Map<String, Object> meta = asMap(addressBody.get("meta"));
         if (items.isEmpty() && shouldFallbackToKeywordSearch(query)) {
             Map<String, Object> keywordBody = searchKeywordDocuments(query, currentPage, countPerPage);
-            log.info(
+            log.debug(
                 "KAKAO_KEYWORD_SEARCH query='{}' docs={} meta={}",
                 query,
                 listSize(keywordBody.get("documents")),
@@ -80,7 +80,7 @@ public class KakaoMapClient {
             items = toAddressItems(keywordBody, true);
             meta = asMap(keywordBody.get("meta"));
         }
-        log.info("KAKAO_SEARCH_ITEMS query='{}' items={}", query, items.size());
+        log.debug("KAKAO_SEARCH_ITEMS query='{}' items={}", query, items.size());
 
         Map<String, Object> response = new LinkedHashMap<String, Object>();
         response.put("available", true);

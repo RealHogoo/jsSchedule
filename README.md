@@ -87,6 +87,8 @@
 
 ```powershell
 $env:APP_ENV="dev"
+$env:SERVICE_ID="schedule-service"
+$env:PUBLIC_BASE_URL="http://localhost:8082"
 $env:SCHEDULE_DB_URL="jdbc:postgresql://localhost:5432/schedule"
 $env:SCHEDULE_DB_USERNAME="postgres"
 $env:SCHEDULE_DB_PASSWORD="postgres"
@@ -99,6 +101,7 @@ $env:ADMIN_SERVICE_PUBLIC_BASE_URL="https://adm.example.com"
 `JWT_SECRET`는 `admin-service`와 같은 값을 사용해야 합니다.
 
 외부 공개 환경에서는 `ADMIN_SERVICE_BASE_URL`은 내부 호출 주소를, `ADMIN_SERVICE_PUBLIC_BASE_URL`은 로그인 리다이렉트에 사용할 외부 주소를 넣는 구성을 권장합니다.
+서비스 자체 공개 주소와 식별값은 `PUBLIC_BASE_URL`, `SERVICE_ID`로 공통 관리할 수 있습니다.
 
 ## 연동 전제
 

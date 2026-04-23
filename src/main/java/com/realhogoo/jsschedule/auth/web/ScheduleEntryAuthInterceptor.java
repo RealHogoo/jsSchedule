@@ -19,14 +19,17 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
 
     private final AdminServiceClient adminServiceClient;
     private final String adminServicePublicBaseUrl;
+    private final String publicBaseUrl;
 
     public ScheduleEntryAuthInterceptor(
         @Lazy
         AdminServiceClient adminServiceClient,
-        @Value("${admin-service.public-base-url:${admin-service.base-url}}") String adminServicePublicBaseUrl
+        @Value("${admin-service.public-base-url:${admin-service.base-url}}") String adminServicePublicBaseUrl,
+        @Value("${app.public-base-url:http://localhost:8082}") String publicBaseUrl
     ) {
         this.adminServiceClient = adminServiceClient;
         this.adminServicePublicBaseUrl = normalizeBaseUrl(adminServicePublicBaseUrl);
+        this.publicBaseUrl = normalizeBaseUrl(publicBaseUrl);
     }
 
     @Override
@@ -120,6 +123,10 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private String buildPublicRequestUrl(HttpServletRequest request) {
+        if (!publicBaseUrl.isEmpty()) {
+            return publicBaseUrl + path(request);
+        }
+
         String scheme = forwardedScheme(request);
         String host = forwardedHost(request);
         int port = forwardedPort(request, scheme);

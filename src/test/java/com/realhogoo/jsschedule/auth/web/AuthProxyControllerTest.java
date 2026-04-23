@@ -16,6 +16,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,16 +36,24 @@ class AuthProxyControllerTest {
         response.put("ok", true);
         response.put("code", "OK");
         response.put("message", "success");
-        response.put("data", Collections.singletonMap("token", "proxy-token"));
+        response.put("data", Map.of(
+            "token", "proxy-token",
+            "refresh_token", "refresh-token",
+            "session_id", "session-1"
+        ));
 
         when(adminServiceClient.login(anyMap())).thenReturn(response);
 
         mockMvc.perform(post("/login.json")
+                .header("X-Forwarded-Host", "sch.js65.myds.me")
+                .header("X-Forwarded-Proto", "https")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"user_id\":\"ADMIN\",\"user_pw\":\"1111\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ok").value(true))
-            .andExpect(jsonPath("$.data.token").value("proxy-token"));
+            .andExpect(jsonPath("$.data.token").value("proxy-token"))
+            .andExpect(header().stringValues("Set-Cookie",
+                org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("Domain=js65.myds.me"))));
     }
 
     @Test

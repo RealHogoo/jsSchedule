@@ -18,7 +18,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "admin-service.public-base-url=https://adm.js65.myds.me")
+@SpringBootTest(properties = {
+    "admin-service.public-base-url=https://adm.js65.myds.me",
+    "app.public-base-url=https://sch.js65.myds.me"
+})
 @AutoConfigureMockMvc
 class ScheduleEntryAuthInterceptorTest {
 
@@ -41,7 +44,7 @@ class ScheduleEntryAuthInterceptorTest {
         mockMvc.perform(get("/schedule.html")
                 .header("X-Forwarded-Proto", "https")
                 .header("X-Forwarded-Host", "sch.js65.myds.me")
-                .header("X-Forwarded-Port", "443"))
+                .header("X-Forwarded-Port", "80"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl(expectedRedirect));
     }

@@ -86,15 +86,19 @@
 필수 또는 권장 환경 변수:
 
 ```powershell
+$env:APP_ENV="dev"
 $env:SCHEDULE_DB_URL="jdbc:postgresql://localhost:5432/schedule"
 $env:SCHEDULE_DB_USERNAME="postgres"
 $env:SCHEDULE_DB_PASSWORD="postgres"
 $env:JWT_SECRET="change-this-to-a-long-random-secret"
 $env:ADMIN_SERVICE_BASE_URL="http://localhost:8081"
+$env:ADMIN_SERVICE_PUBLIC_BASE_URL="https://adm.example.com"
 .\gradlew.bat bootRun
 ```
 
 `JWT_SECRET`는 `admin-service`와 같은 값을 사용해야 합니다.
+
+외부 공개 환경에서는 `ADMIN_SERVICE_BASE_URL`은 내부 호출 주소를, `ADMIN_SERVICE_PUBLIC_BASE_URL`은 로그인 리다이렉트에 사용할 외부 주소를 넣는 구성을 권장합니다.
 
 ## 연동 전제
 

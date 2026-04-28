@@ -191,6 +191,51 @@
         });
     }
 
+    function renderScheduleWorkspaceNav() {
+        var nav = qs(".workspace-nav");
+        var links;
+        var hasWbs;
+        var projectLink;
+        var wbsLink;
+        var path;
+        var activeHref;
+
+        if (!nav) {
+            return;
+        }
+
+        links = qsa(".nav-link", nav);
+        hasWbs = links.some(function (link) {
+            return link.getAttribute("href") === "/wbs.html";
+        });
+        if (!hasWbs) {
+            projectLink = links.find(function (link) {
+                return link.getAttribute("href") === "/project.html";
+            });
+            wbsLink = document.createElement("a");
+            wbsLink.className = "nav-link";
+            wbsLink.href = "/wbs.html";
+            wbsLink.textContent = "WBS";
+            if (projectLink && projectLink.nextSibling) {
+                nav.insertBefore(wbsLink, projectLink.nextSibling);
+            } else if (projectLink) {
+                nav.appendChild(wbsLink);
+            } else {
+                nav.appendChild(wbsLink);
+            }
+            links = qsa(".nav-link", nav);
+        }
+
+        path = global.location && global.location.pathname ? global.location.pathname : "";
+        activeHref = path;
+        if (path === "/project-form.html" || path === "/task-form.html") {
+            activeHref = "/project.html";
+        }
+        links.forEach(function (link) {
+            link.classList.toggle("is-active", link.getAttribute("href") === activeHref);
+        });
+    }
+
     function ensureAlertModal() {
         var existing = byId("uxAlertModal");
         if (existing) return existing;
@@ -388,6 +433,7 @@
     define("sessionRemove", sessionRemove);
     define("authHeaders", authHeaders);
     define("requestJson", requestJson);
+    define("renderScheduleWorkspaceNav", renderScheduleWorkspaceNav);
     define("fetchReleaseInfo", fetchReleaseInfo);
     define("renderScheduleReleaseInfo", renderScheduleReleaseInfo);
     define("showAlertModal", showAlertModal);
@@ -396,6 +442,7 @@
     define("cleanupScheduleGuidance", cleanupScheduleGuidance);
 
     if (document.body && document.body.classList.contains("schedule-page")) {
+        renderScheduleWorkspaceNav();
         renderScheduleReleaseInfo();
         mountSchedulePageHelp();
         cleanupScheduleGuidance();

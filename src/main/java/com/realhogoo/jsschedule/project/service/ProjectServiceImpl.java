@@ -103,7 +103,7 @@ public class ProjectServiceImpl implements ProjectService {
             projectMapper.insertProject(payload);
             projectId = asLong(payload.get("project_id"));
         } else {
-            if (projectMapper.selectProjectDetail(Collections.<String, Object>singletonMap("project_id", projectId)) == null) {
+            if (projectMapper.countProjectById(Collections.<String, Object>singletonMap("project_id", projectId)) == 0) {
                 throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
             }
             projectMapper.updateProject(payload);

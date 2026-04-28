@@ -12,7 +12,7 @@
         .wbs-board-panel { padding: 24px; }
         .wbs-board-shell {
             display: grid;
-            grid-template-columns: 280px minmax(0, 1fr);
+            grid-template-columns: 520px minmax(0, 1fr);
             grid-template-rows: auto minmax(0, 1fr);
             border: 1px solid #dbe4f0;
             border-radius: 22px;
@@ -26,7 +26,9 @@
             background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         }
         .wbs-tree-head {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 168px 74px;
+            gap: 14px;
             align-items: center;
             font-size: 13px;
             font-weight: 800;
@@ -73,16 +75,18 @@
             border-bottom: 1px solid #edf2f7;
         }
         .wbs-tree-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 168px 74px;
+            gap: 14px;
             align-items: center;
             padding: 16px 18px 16px calc(18px + (var(--wbs-depth, 0) * 18px));
         }
+        .wbs-tree-title,
+        .wbs-tree-date,
         .wbs-tree-copy {
-            display: grid;
-            gap: 0;
             min-width: 0;
         }
-        .wbs-tree-copy strong {
+        .wbs-tree-title strong {
             display: -webkit-box;
             overflow: hidden;
             color: #0f172a;
@@ -90,6 +94,25 @@
             line-height: 1.4;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+        }
+        .wbs-tree-date span {
+            display: block;
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        .wbs-tree-copy strong {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #ecfeff;
+            color: #0f766e;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
         }
         .wbs-timeline-body {
             overflow-x: auto;
@@ -110,26 +133,13 @@
         .wbs-bar {
             position: absolute;
             top: 18px;
-            display: grid;
-            gap: 4px;
-            min-height: 50px;
-            padding: 10px 14px;
+            min-height: 44px;
+            padding: 0;
             border: 0;
             border-radius: 16px;
             background: linear-gradient(135deg, var(--wbs-accent, #0f766e) 0%, #155e75 100%);
-            color: #f8fafc;
-            text-align: left;
             cursor: pointer;
             box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
-        }
-        .wbs-bar-title {
-            font-size: 13px;
-            font-weight: 800;
-            line-height: 1.35;
-        }
-        .wbs-bar-range {
-            font-size: 11px;
-            color: rgba(248, 250, 252, 0.82);
         }
         .wbs-bar.is-empty {
             position: absolute;
@@ -153,7 +163,10 @@
             .wbs-tree-rows { border-right: 0; }
             .wbs-tree-head,
             .wbs-timeline-head { padding: 16px; }
+            .wbs-tree-head,
+            .wbs-tree-row { grid-template-columns: 1fr; }
             .wbs-tree-row { padding-right: 16px; }
+            .wbs-tree-date span { white-space: normal; }
         }
     </style>
 </head>
@@ -238,7 +251,9 @@
 
                 <div class="wbs-board-shell">
                     <div class="wbs-tree-head">
-                        <span>태스크 구조</span>
+                        <span>태스크 명</span>
+                        <span>날짜</span>
+                        <span>WBS</span>
                     </div>
                     <div class="wbs-timeline-head">
                         <div id="timelineMeta" class="wbs-timeline-meta">기간을 계산하는 중입니다.</div>

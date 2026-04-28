@@ -277,9 +277,16 @@
 
         treeTarget.innerHTML = orderedTasks.map(function (task) {
             var depth = Number(task._tree_depth || 0);
+            var range = formatRange(task.start_date, task.due_date);
             return "<article class=\"wbs-tree-row\" style=\"--wbs-depth:" + esc(String(depth)) + "\">"
-                + "<div class=\"wbs-tree-copy\">"
+                + "<div class=\"wbs-tree-title\">"
                 + "<strong>" + esc(task.task_title || "-") + "</strong>"
+                + "</div>"
+                + "<div class=\"wbs-tree-date\">"
+                + "<span>" + esc(range) + "</span>"
+                + "</div>"
+                + "<div class=\"wbs-tree-copy\">"
+                + "<strong>" + esc(task._wbsCode || "-") + "</strong>"
                 + "</div>"
                 + "</article>";
         }).join("");
@@ -296,10 +303,7 @@
             return "<article class=\"wbs-timeline-row\" style=\"width:" + esc(String(width)) + "px\">"
                 + "<div class=\"wbs-timeline-grid\"></div>"
                 + (range.start && range.end
-                    ? "<button type=\"button\" class=\"wbs-bar\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">"
-                        + "<span class=\"wbs-bar-title\">" + esc(task.task_title || "-") + "</span>"
-                        + "<span class=\"wbs-bar-range\">" + esc(label) + "</span>"
-                        + "</button>"
+                    ? "<button type=\"button\" class=\"wbs-bar\" aria-label=\"" + esc(label) + "\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"></button>"
                     : "<div class=\"wbs-bar is-empty\"><span>일정 미지정</span></div>")
                 + "</article>";
         }).join("");

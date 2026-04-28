@@ -108,6 +108,12 @@
         </if>
     </select>
 
+    <select id="countProjectById" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_project
+        WHERE project_id = #{project_id}
+    </select>
+
     <insert id="insertProject" parameterType="map" useGeneratedKeys="true" keyProperty="project_id" keyColumn="project_id">
         INSERT INTO schedule_project (
             project_key,

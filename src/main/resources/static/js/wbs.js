@@ -65,6 +65,18 @@
     function taskWbsColor(task) {
         return normalizeWbsColor(task && task.wbs_color);
     }
+    function taskRange(task) {
+        var start = parseDate(task && (task.start_date || task.due_date));
+        var end = parseDate(task && (task.due_date || task.start_date));
+        if (start && end && start > end) {
+            return { start: end, end: start };
+        }
+        return { start: start, end: end };
+    }
+    function hasSchedule(task) {
+        var range = taskRange(task);
+        return !!(range.start && range.end);
+    }
     function setMessage(text, type) {
         var target = byId("wbsActionMsg");
         if (!target) return;
@@ -100,35 +112,25 @@
             byParent[key].sort(compareTasks);
         });
 
-        function visit(parentId, depth, seen, path) {
-            (byParent[parentId] || []).forEach(function (task, index) {
+        function visit(parentId, depth, seen) {
+            (byParent[parentId] || []).forEach(function (task) {
                 var taskId = String(task && task.task_id || "");
                 if (!taskId || seen[taskId]) return;
                 seen[taskId] = true;
                 task._tree_depth = depth;
-                task._wbsCode = path.concat(index + 1).join(".");
                 ordered.push(task);
-                visit(taskId, depth + 1, seen, path.concat(index + 1));
+                visit(taskId, depth + 1, seen);
             });
         }
 
-        visit("", 0, {}, []);
+        visit("", 0, {});
         tasks.filter(function (task) {
             return ordered.indexOf(task) < 0;
         }).sort(compareTasks).forEach(function (task) {
             task._tree_depth = 0;
-            task._wbsCode = String(ordered.length + 1);
             ordered.push(task);
         });
         return ordered;
-    }
-    function taskRange(task) {
-        var start = parseDate(task && (task.start_date || task.due_date));
-        var end = parseDate(task && (task.due_date || task.start_date));
-        if (start && end && start > end) {
-            return { start: end, end: start };
-        }
-        return { start: start, end: end };
     }
     function resolveTimelineBounds(project, tasks) {
         var taskStarts = tasks.map(function (task) { return taskRange(task).start; }).filter(Boolean);
@@ -266,8 +268,7 @@
         var timelineTarget = byId("wbsTimelineRows");
         var orderedTasks = buildTaskRows(state.tasks.slice());
         var totalDays = diffDays(start, end) + 1;
-        var totalWeeks = Math.max(1, Math.ceil(totalDays / 7));
-        var width = Math.max(totalWeeks * WEEK_WIDTH, 720);
+        var width = Math.max(Math.max(1, Math.ceil(totalDays / 7)) * WEEK_WIDTH, 720);
 
         if (!orderedTasks.length) {
             treeTarget.innerHTML = "<div class=\"detail-empty\">등록된 태스크가 없습니다.</div>";
@@ -285,46 +286,30 @@
                 + "<div class=\"wbs-tree-date\">"
                 + "<span>" + esc(range) + "</span>"
                 + "</div>"
-                + "<div class=\"wbs-tree-copy\">"
-                + "<strong>" + esc(task._wbsCode || "-") + "</strong>"
-                + "</div>"
                 + "</article>";
         }).join("");
 
         timelineTarget.innerHTML = orderedTasks.map(function (task) {
             var range = taskRange(task);
-            var barLeft = 0;
-            var barWidth = 0;
-            var label = formatRange(task.start_date, task.due_date);
-            if (range.start && range.end) {
-                barLeft = (diffDays(start, range.start) / totalDays) * 100;
-                barWidth = ((diffDays(range.start, range.end) + 1) / totalDays) * 100;
-            }
+            var barLeft;
+            var barWidth;
             return "<article class=\"wbs-timeline-row\" style=\"width:" + esc(String(width)) + "px\">"
                 + "<div class=\"wbs-timeline-grid\"></div>"
                 + (range.start && range.end
-                    ? "<button type=\"button\" class=\"wbs-bar\" aria-label=\"" + esc(label) + "\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\"></button>"
-                    : "<div class=\"wbs-bar is-empty\"><span>일정 미지정</span></div>")
+                    ? (barLeft = (diffDays(start, range.start) / totalDays) * 100,
+                        barWidth = ((diffDays(range.start, range.end) + 1) / totalDays) * 100,
+                        "<div class=\"wbs-bar\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\"></div>")
+                    : "")
                 + "</article>";
         }).join("");
-
-        UX.qsa(".wbs-bar[data-project-id]", timelineTarget).forEach(function (button) {
-            UX.bindOnce(button, "click", function () {
-                var projectId = button.getAttribute("data-project-id");
-                var taskId = button.getAttribute("data-task-id");
-                if (!projectId) return;
-                global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId)
-                    + (taskId ? "&task_id=" + encodeURIComponent(taskId) : "");
-            });
-        });
     }
     function renderBoard() {
         var bounds;
         if (!state.project) {
-            renderEmptyBoard("프로젝트를 선택하세요.");
+            renderEmptyBoard("프로젝트를 선택해 주세요.");
             return;
         }
-        bounds = resolveTimelineBounds(state.project, state.tasks);
+        bounds = resolveTimelineBounds(state.project, state.tasks.filter(hasSchedule));
         state.timelineStart = bounds.start;
         state.timelineEnd = bounds.end;
         renderTimelineScale(bounds.start, bounds.end);
@@ -414,7 +399,7 @@
             state.project = null;
             state.tasks = [];
             renderProjectSummary();
-            renderEmptyBoard("프로젝트를 선택하세요.");
+            renderEmptyBoard("프로젝트를 선택해 주세요.");
             return Promise.resolve();
         }
 

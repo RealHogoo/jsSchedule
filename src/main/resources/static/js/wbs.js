@@ -77,6 +77,9 @@
         var range = taskRange(task);
         return !!(range.start && range.end);
     }
+    function isMobileViewport() {
+        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
+    }
     function setMessage(text, type) {
         var target = byId("wbsActionMsg");
         if (!target) return;
@@ -298,10 +301,36 @@
                 + (range.start && range.end
                     ? (barLeft = (diffDays(start, range.start) / totalDays) * 100,
                         barWidth = ((diffDays(range.start, range.end) + 1) / totalDays) * 100,
-                        "<div class=\"wbs-bar\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\"></div>")
+                        "<div class=\"wbs-bar\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\" data-task-title=\"" + esc(task.task_title || "-") + "\" data-task-date=\"" + esc(formatRange(task.start_date, task.due_date)) + "\"></div>")
                     : "")
                 + "</article>";
         }).join("");
+        bindMobileTip();
+    }
+    function closeMobileTip() {
+        var card = byId("wbsMobileTip");
+        if (!card) return;
+        card.hidden = true;
+        card.classList.remove("is-open");
+    }
+    function openMobileTip(title, dateText) {
+        var card = byId("wbsMobileTip");
+        if (!card) return;
+        byId("wbsMobileTipTitle").textContent = title || "-";
+        byId("wbsMobileTipDate").textContent = dateText || "-";
+        card.hidden = false;
+        card.classList.add("is-open");
+    }
+    function bindMobileTip() {
+        if (!isMobileViewport()) {
+            closeMobileTip();
+            return;
+        }
+        UX.qsa(".wbs-bar").forEach(function (bar) {
+            UX.bindOnce(bar, "click", function () {
+                openMobileTip(bar.getAttribute("data-task-title"), bar.getAttribute("data-task-date"));
+            });
+        });
     }
     function renderBoard() {
         var bounds;
@@ -429,9 +458,6 @@
             redirectToLogin();
         });
     }
-    function isMobileViewport() {
-        return global.matchMedia && global.matchMedia("(max-width: 768px)").matches;
-    }
     function setSidebarOpen(open) {
         var sidebar = byId("workspaceSidebar");
         var toggle = byId("btnSidebarToggle");
@@ -472,7 +498,14 @@
             if (!state.selectedProjectId) return;
             global.location.href = "/task-form.html?project_id=" + encodeURIComponent(state.selectedProjectId);
         });
+        UX.bindOnce(byId("btnCloseWbsMobileTip"), "click", closeMobileTip);
+        UX.bindOnce(byId("wbsMobileTip"), "click", function (event) {
+            if (event.target && event.target.id === "wbsMobileTip") {
+                closeMobileTip();
+            }
+        });
         global.addEventListener("resize", syncSidebarMode);
+        global.addEventListener("resize", bindMobileTip);
     }
 
     bindEvents();

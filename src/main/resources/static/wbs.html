@@ -12,7 +12,7 @@
         .wbs-board-panel { padding: 24px; }
         .wbs-board-shell {
             display: grid;
-            grid-template-columns: 340px minmax(0, 1fr);
+            grid-template-columns: 280px minmax(0, 1fr);
             grid-template-rows: auto minmax(0, 1fr);
             border: 1px solid #dbe4f0;
             border-radius: 22px;
@@ -50,8 +50,8 @@
             display: grid;
             gap: 4px;
             align-content: start;
-            min-width: 48px;
-            padding: 10px 8px;
+            min-width: 112px;
+            padding: 12px 10px;
             border-right: 1px solid #e2e8f0;
             background: linear-gradient(180deg, rgba(236, 254, 255, 0.75) 0%, rgba(255, 255, 255, 0.96) 100%);
         }
@@ -73,29 +73,13 @@
             border-bottom: 1px solid #edf2f7;
         }
         .wbs-tree-row {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: 12px;
-            align-items: start;
-            padding: 16px 18px 16px calc(18px + (var(--wbs-depth, 0) * 18px));
-        }
-        .wbs-tree-code {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            justify-content: center;
-            width: fit-content;
-            min-width: 42px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: #ecfeff;
-            color: var(--wbs-accent, #0f766e);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
+            padding: 16px 18px 16px calc(18px + (var(--wbs-depth, 0) * 18px));
         }
         .wbs-tree-copy {
             display: grid;
-            gap: 6px;
+            gap: 0;
             min-width: 0;
         }
         .wbs-tree-copy strong {
@@ -106,25 +90,6 @@
             line-height: 1.4;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
-        }
-        .wbs-tree-copy > span {
-            font-size: 12px;
-            color: #64748b;
-        }
-        .wbs-tree-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .wbs-tree-meta span {
-            display: inline-flex;
-            align-items: center;
-            padding: 5px 10px;
-            border-radius: 999px;
-            background: #eff6ff;
-            color: #1e3a8a;
-            font-size: 11px;
-            font-weight: 700;
         }
         .wbs-timeline-body {
             overflow-x: auto;
@@ -139,7 +104,7 @@
                 rgba(148, 163, 184, 0.14) 0,
                 rgba(148, 163, 184, 0.14) 1px,
                 transparent 1px,
-                transparent 48px
+                transparent 112px
             );
         }
         .wbs-bar {

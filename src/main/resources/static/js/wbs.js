@@ -2,7 +2,7 @@
     "use strict";
 
     var UX = global.UX;
-    var DAY_WIDTH = 48;
+    var WEEK_WIDTH = 112;
     var EMPTY_SUMMARY = {
         project_total: 0,
         task_total: 0,
@@ -56,19 +56,6 @@
     }
     function formatRange(startDate, endDate) {
         return formatDate(startDate) + " ~ " + formatDate(endDate);
-    }
-    function statusLabel(value) {
-        var status = String(value || "TODO").toUpperCase();
-        if (status === "IN_PROGRESS") return "진행 중";
-        if (status === "DONE") return "완료";
-        if (status === "HOLD") return "보류";
-        return "할 일";
-    }
-    function priorityLabel(value) {
-        var priority = String(value || "MEDIUM").toUpperCase();
-        if (priority === "HIGH") return "높음";
-        if (priority === "LOW") return "낮음";
-        return "보통";
     }
     function normalizeWbsColor(value) {
         var color = String(value || "").trim().toUpperCase();
@@ -244,25 +231,31 @@
         var target = byId("wbsTimelineScale");
         var meta = byId("timelineMeta");
         var totalDays = diffDays(start, end) + 1;
-        var width = Math.max(totalDays * DAY_WIDTH, 720);
+        var totalWeeks = Math.max(1, Math.ceil(totalDays / 7));
+        var width = Math.max(totalWeeks * WEEK_WIDTH, 720);
         var marks = [];
         var index;
         var cursor;
+        var weekEnd;
 
         target.style.width = width + "px";
-        meta.textContent = formatRange(toDateKey(start), toDateKey(end)) + " · 총 " + totalDays + "일";
+        meta.textContent = formatRange(toDateKey(start), toDateKey(end));
 
-        for (index = 0; index < totalDays; index += 1) {
-            cursor = addDays(start, index);
+        for (index = 0; index < totalWeeks; index += 1) {
+            cursor = addDays(start, index * 7);
+            weekEnd = addDays(cursor, 6);
+            if (weekEnd > end) {
+                weekEnd = end;
+            }
             marks.push(
                 "<div class=\"wbs-scale-cell\">"
-                + "<strong>" + esc(pad(cursor.getMonth() + 1) + "." + pad(cursor.getDate())) + "</strong>"
-                + "<span>D+" + esc(String(index)) + "</span>"
+                + "<strong>" + esc("W" + String(index + 1)) + "</strong>"
+                + "<span>" + esc(pad(cursor.getMonth() + 1) + "." + pad(cursor.getDate()) + " ~ " + pad(weekEnd.getMonth() + 1) + "." + pad(weekEnd.getDate())) + "</span>"
                 + "</div>"
             );
         }
         target.innerHTML = marks.join("");
-        target.style.gridTemplateColumns = "repeat(" + totalDays + ", minmax(" + DAY_WIDTH + "px, 1fr))";
+        target.style.gridTemplateColumns = "repeat(" + totalWeeks + ", minmax(" + WEEK_WIDTH + "px, 1fr))";
         return {
             totalDays: totalDays,
             width: width
@@ -273,7 +266,8 @@
         var timelineTarget = byId("wbsTimelineRows");
         var orderedTasks = buildTaskRows(state.tasks.slice());
         var totalDays = diffDays(start, end) + 1;
-        var width = Math.max(totalDays * DAY_WIDTH, 720);
+        var totalWeeks = Math.max(1, Math.ceil(totalDays / 7));
+        var width = Math.max(totalWeeks * WEEK_WIDTH, 720);
 
         if (!orderedTasks.length) {
             treeTarget.innerHTML = "<div class=\"detail-empty\">등록된 태스크가 없습니다.</div>";
@@ -283,17 +277,9 @@
 
         treeTarget.innerHTML = orderedTasks.map(function (task) {
             var depth = Number(task._tree_depth || 0);
-            var relation = task.parent_task_title ? ("상위: " + task.parent_task_title) : "루트 태스크";
             return "<article class=\"wbs-tree-row\" style=\"--wbs-depth:" + esc(String(depth)) + "\">"
-                + "<div class=\"wbs-tree-code\" style=\"--wbs-accent:" + esc(taskWbsColor(task)) + "\">" + esc(task._wbsCode || "-") + "</div>"
                 + "<div class=\"wbs-tree-copy\">"
                 + "<strong>" + esc(task.task_title || "-") + "</strong>"
-                + "<span>" + esc(relation) + "</span>"
-                + "<div class=\"wbs-tree-meta\">"
-                + "<span>" + esc(statusLabel(task.task_status)) + "</span>"
-                + "<span>" + esc(priorityLabel(task.priority)) + "</span>"
-                + "<span>" + esc(task.assignee_user_id || "-") + "</span>"
-                + "</div>"
                 + "</div>"
                 + "</article>";
         }).join("");
@@ -311,7 +297,7 @@
                 + "<div class=\"wbs-timeline-grid\"></div>"
                 + (range.start && range.end
                     ? "<button type=\"button\" class=\"wbs-bar\" style=\"left:" + esc(String(barLeft)) + "%;width:" + esc(String(Math.max(barWidth, 2.5))) + "%;--wbs-accent:" + esc(taskWbsColor(task)) + "\" data-project-id=\"" + esc(task.project_id || "") + "\" data-task-id=\"" + esc(task.task_id || "") + "\">"
-                        + "<span class=\"wbs-bar-title\">" + esc(task._wbsCode || "-") + " " + esc(task.task_title || "-") + "</span>"
+                        + "<span class=\"wbs-bar-title\">" + esc(task.task_title || "-") + "</span>"
                         + "<span class=\"wbs-bar-range\">" + esc(label) + "</span>"
                         + "</button>"
                     : "<div class=\"wbs-bar is-empty\"><span>일정 미지정</span></div>")

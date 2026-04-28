@@ -120,6 +120,77 @@
         });
     }
 
+    var releaseInfoPromise = null;
+
+    function fetchReleaseInfo() {
+        if (releaseInfoPromise) {
+            return releaseInfoPromise;
+        }
+
+        releaseInfoPromise = fetch("/version.json", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            body: "{}"
+        }).then(function (response) {
+            return response.json();
+        }).then(function (payload) {
+            var data = payload && payload.ok === true ? (payload.data || {}) : {};
+            return {
+                service: normalizeText(data.service, "schedule-service"),
+                revision: normalizeText(data.revision, "unknown")
+            };
+        }).catch(function () {
+            return {
+                service: "schedule-service",
+                revision: "unknown"
+            };
+        });
+
+        return releaseInfoPromise;
+    }
+
+    function renderScheduleReleaseInfo() {
+        var currentUser = byId("currentUser");
+        var userSection;
+        var sidebarBody;
+        var section;
+        var label;
+        var value;
+
+        if (!currentUser || byId("releaseInfoSection")) {
+            return;
+        }
+
+        userSection = currentUser.closest ? currentUser.closest(".sidebar-section") : currentUser.parentNode;
+        sidebarBody = userSection ? userSection.parentNode : null;
+        if (!userSection || !sidebarBody) {
+            return;
+        }
+
+        section = document.createElement("section");
+        section.id = "releaseInfoSection";
+        section.className = "sidebar-section sidebar-section-release";
+        section.innerHTML = ""
+            + "<div class=\"section-label\">Release</div>"
+            + "<div class=\"release-badge\" id=\"releaseBadge\">"
+            + "<span class=\"release-badge-label\" id=\"releaseBadgeLabel\">recent push</span>"
+            + "<strong class=\"release-badge-value\" id=\"releaseBadgeValue\">loading</strong>"
+            + "</div>";
+
+        sidebarBody.insertBefore(section, userSection);
+        label = byId("releaseBadgeLabel");
+        value = byId("releaseBadgeValue");
+
+        fetchReleaseInfo().then(function (info) {
+            setText(label, info.service);
+            setText(value, info.revision);
+        });
+    }
+
     function ensureAlertModal() {
         var existing = byId("uxAlertModal");
         if (existing) return existing;
@@ -317,12 +388,15 @@
     define("sessionRemove", sessionRemove);
     define("authHeaders", authHeaders);
     define("requestJson", requestJson);
+    define("fetchReleaseInfo", fetchReleaseInfo);
+    define("renderScheduleReleaseInfo", renderScheduleReleaseInfo);
     define("showAlertModal", showAlertModal);
     define("hideAlertModal", hideAlertModal);
     define("mountSchedulePageHelp", mountSchedulePageHelp);
     define("cleanupScheduleGuidance", cleanupScheduleGuidance);
 
     if (document.body && document.body.classList.contains("schedule-page")) {
+        renderScheduleReleaseInfo();
         mountSchedulePageHelp();
         cleanupScheduleGuidance();
     }

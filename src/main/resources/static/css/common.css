@@ -447,6 +447,10 @@ body::-webkit-scrollbar-thumb:hover,
     margin-top: 24px;
 }
 
+.sidebar-section-release {
+    margin-bottom: 4px;
+}
+
 .section-label {
     margin-bottom: 12px;
     font-size: 12px;
@@ -472,6 +476,30 @@ body::-webkit-scrollbar-thumb:hover,
     font-size: 13px;
     color: #f8fafc;
     word-break: break-word;
+}
+
+.release-badge {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(8, 145, 178, 0.18) 0%, rgba(45, 212, 191, 0.12) 100%);
+    border: 1px solid rgba(103, 232, 249, 0.22);
+}
+
+.release-badge-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #a5f3fc;
+}
+
+.release-badge-value {
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    color: #f8fafc;
 }
 
 .summary-cards {

@@ -10,6 +10,12 @@
         currentMonth: startOfMonth(new Date()),
         selectedDate: toDateKey(new Date())
     };
+    var EMPTY_SUMMARY = {
+        project_total: 0,
+        task_total: 0,
+        task_in_progress: 0,
+        task_overdue: 0
+    };
 
     function byId(id) { return UX.byId(id); }
     function esc(value) { return UX.esc(value == null ? "" : String(value)); }
@@ -295,13 +301,8 @@
     }
 
     function loadContext() {
-        return Promise.all([
-            UX.requestJson("/auth/me.json", {}),
-            UX.requestJson("/dashboard/summary.json", {})
-        ]).then(function (results) {
-            var me = results[0];
-            var dashboard = results[1];
-            if (!me || me.ok !== true || !dashboard || dashboard.ok !== true) {
+        return UX.requestJson("/auth/me.json", {}).then(function (me) {
+            if (!me || me.ok !== true) {
                 redirectToLogin();
                 return;
             }
@@ -311,7 +312,12 @@
                 { label: "이름", value: state.currentUser.user_nm || "-" },
                 { label: "권한", value: (state.currentUser.roles || []).join(", ") || "-" }
             ]);
-            renderSummary((dashboard.data && dashboard.data.summary) || {});
+            return UX.requestJson("/dashboard/summary.json", {}).then(function (dashboard) {
+                var summary = dashboard && dashboard.ok === true && dashboard.data ? dashboard.data.summary : null;
+                renderSummary(summary || EMPTY_SUMMARY);
+            }).catch(function () {
+                renderSummary(EMPTY_SUMMARY);
+            });
         }).catch(function () {
             redirectToLogin();
         });

@@ -18,6 +18,12 @@
         nodeRollups: [],
         monthlyChart: null
     };
+    var EMPTY_SUMMARY = {
+        project_total: 0,
+        task_total: 0,
+        task_in_progress: 0,
+        overdue_task_count: 0
+    };
 
     function byId(id) { return UX.byId(id); }
     function esc(value) { return UX.esc(value == null ? "" : String(value)); }
@@ -711,25 +717,26 @@
         });
     }
     function loadDashboard() {
-        return Promise.all([
-            UX.requestJson("/auth/me.json", {}),
-            UX.requestJson("/dashboard/summary.json", currentFilter())
-        ]).then(function (results) {
-            var me = results[0];
-            var summaryResponse = results[1];
-            if (!me || me.ok !== true || !summaryResponse || summaryResponse.ok !== true) {
+        return UX.requestJson("/auth/me.json", {}).then(function (me) {
+            if (!me || me.ok !== true) {
                 redirectToLogin();
                 return;
             }
             state.currentUser = me.data || {};
-            state.summary = (summaryResponse.data && summaryResponse.data.summary) || {};
             bindInfo("currentUser", [
                 { label: "\uC544\uC774\uB514", value: state.currentUser.user_id || "-" },
                 { label: "\uC774\uB984", value: state.currentUser.user_nm || "-" },
                 { label: "\uAD8C\uD55C", value: (state.currentUser.roles || []).join(", ") || "-" }
             ]);
-            renderSummary(state.summary);
-            return loadProjects(true);
+            return UX.requestJson("/dashboard/summary.json", currentFilter()).then(function (summaryResponse) {
+                state.summary = summaryResponse && summaryResponse.ok === true && summaryResponse.data ? (summaryResponse.data.summary || EMPTY_SUMMARY) : EMPTY_SUMMARY;
+                renderSummary(state.summary);
+            }).catch(function () {
+                state.summary = EMPTY_SUMMARY;
+                renderSummary(state.summary);
+            }).then(function () {
+                return loadProjects(true);
+            });
         }).catch(function () { redirectToLogin(); });
     }
     function resetFilters() {

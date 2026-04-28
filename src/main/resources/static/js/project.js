@@ -6,6 +6,12 @@
         projects: [],
         sidebarOpen: false
     };
+    var EMPTY_SUMMARY = {
+        project_total: 0,
+        project_in_progress: 0,
+        task_total: 0,
+        upcoming_milestone_count: 0
+    };
 
     function redirectToLogin() {
         global.location.href = "/";
@@ -145,19 +151,13 @@
     }
 
     function loadContext() {
-        return Promise.all([
-            UX.requestJson("/auth/me.json", {}),
-            UX.requestJson("/dashboard/summary.json", {})
-        ]).then(function (results) {
-            var me = results[0];
-            var dashboard = results[1];
-            if (!me || me.ok !== true || !dashboard || dashboard.ok !== true) {
+        return UX.requestJson("/auth/me.json", {}).then(function (me) {
+            if (!me || me.ok !== true) {
                 redirectToLogin();
                 return;
             }
 
             var user = me.data || {};
-            var summary = (dashboard.data && dashboard.data.summary) || {};
 
             bindInfo("currentUser", [
                 { label: "아이디", value: user.user_id || "-" },
@@ -165,7 +165,12 @@
                 { label: "권한", value: (user.roles || []).join(", ") || "-" }
             ]);
 
-            renderSummary(summary);
+            return UX.requestJson("/dashboard/summary.json", {}).then(function (dashboard) {
+                var summary = dashboard && dashboard.ok === true && dashboard.data ? dashboard.data.summary : null;
+                renderSummary(summary || EMPTY_SUMMARY);
+            }).catch(function () {
+                renderSummary(EMPTY_SUMMARY);
+            });
         }).catch(function () {
             redirectToLogin();
         });

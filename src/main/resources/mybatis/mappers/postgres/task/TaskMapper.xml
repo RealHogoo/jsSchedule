@@ -22,6 +22,7 @@
             t.support_amount,
             t.actual_amount,
             t.progress_rate,
+            t.wbs_color,
             t.description,
             parent.task_title AS parent_task_title,
             m.milestone_name
@@ -81,6 +82,7 @@
             t.support_amount,
             t.actual_amount,
             t.progress_rate,
+            t.wbs_color,
             t.description,
             t.milestone_id,
             parent.task_title AS parent_task_title,
@@ -113,6 +115,7 @@
             task_id,
             project_id,
             parent_task_id,
+            wbs_color,
             task_title
         FROM schedule_task
         WHERE task_id = #{task_id}
@@ -133,6 +136,7 @@
             task_id,
             project_id,
             parent_task_id,
+            wbs_color,
             task_title
         FROM schedule_task
         WHERE project_id = #{project_id}
@@ -163,6 +167,7 @@
             support_amount,
             actual_amount,
             progress_rate,
+            wbs_color,
             description
         ) VALUES (
             #{project_id},
@@ -180,6 +185,7 @@
             #{support_amount},
             #{actual_amount},
             #{progress_rate},
+            #{wbs_color},
             #{description}
         )
     </insert>
@@ -202,6 +208,7 @@
             support_amount = #{support_amount},
             actual_amount = #{actual_amount},
             progress_rate = #{progress_rate},
+            wbs_color = #{wbs_color},
             description = #{description},
             updated_at = CURRENT_TIMESTAMP
         WHERE task_id = #{task_id}

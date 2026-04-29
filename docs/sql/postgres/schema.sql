@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS schedule_task (
     start_date DATE,
     due_date DATE,
     progress_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+    wbs_color VARCHAR(7),
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -71,10 +72,10 @@ ON CONFLICT (milestone_id) DO NOTHING;
 
 INSERT INTO schedule_task (
     task_id, project_id, milestone_id, task_title, task_status, priority,
-    assignee_user_id, start_date, due_date, progress_rate, description
+    assignee_user_id, start_date, due_date, progress_rate, wbs_color, description
 ) VALUES (
     1, 1, 1, 'Connect admin-service authentication', 'IN_PROGRESS', 'HIGH',
-    'ADMIN', DATE '2026-04-04', DATE '2026-04-08', 60.00,
+    'ADMIN', DATE '2026-04-04', DATE '2026-04-08', 60.00, '#0F766E',
     'Local seed task used for dashboard and list API checks.'
 )
 ON CONFLICT (task_id) DO NOTHING;

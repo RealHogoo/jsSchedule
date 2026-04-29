@@ -16,6 +16,7 @@
         blogRouteTimer: null
     };
     var MAX_TASK_DEPTH = 3;
+    var DEFAULT_WBS_COLOR = "#0F766E";
     var taskFormHome = null;
 
     function byId(id) { return UX.byId(id); }
@@ -88,6 +89,12 @@
         if (hours > 0 && minutes > 0) return hours + "시간 " + minutes + "분";
         if (hours > 0) return hours + "시간";
         return totalMinutes + "분";
+    }
+
+    function normalizeWbsColor(value) {
+        var color = String(value || "").trim().toUpperCase();
+        if (!/^#([0-9A-F]{6})$/.test(color)) return DEFAULT_WBS_COLOR;
+        return color;
     }
 
     function syncProgressRateLabel(value) {
@@ -401,6 +408,8 @@
         byId("taskStatus").value = task && task.task_status ? String(task.task_status) : "TODO";
         byId("taskPriority").value = task && task.priority ? String(task.priority) : "MEDIUM";
         renderParentTaskOptions(task && task.task_id ? String(task.task_id) : "", task && task.parent_task_id ? String(task.parent_task_id) : "");
+        byId("taskWbsColor").value = normalizeWbsColor(task && task.wbs_color);
+        byId("taskWbsColorText").value = normalizeWbsColor(task && task.wbs_color);
         byId("taskAssigneeUserId").value = task && task.assignee_user_id ? String(task.assignee_user_id) : (state.currentUser.user_id || "");
         byId("taskAssigneeDisplay").value = userLabel(task && task.assignee_user_nm ? String(task.assignee_user_nm) : (state.currentUser.user_nm || ""), task && task.assignee_user_id ? String(task.assignee_user_id) : (state.currentUser.user_id || ""));
         byId("taskStartDate").value = task && task.start_date ? String(task.start_date).slice(0, 10) : "";
@@ -430,6 +439,7 @@
             task_id: byId("taskId").value.trim() || null,
             project_id: state.projectId,
             parent_task_id: byId("taskParentTaskId").value.trim() || null,
+            wbs_color: normalizeWbsColor(byId("taskWbsColorText").value || byId("taskWbsColor").value),
             task_title: byId("taskTitle").value.trim(),
             task_status: byId("taskStatus").value,
             priority: byId("taskPriority").value,
@@ -567,6 +577,19 @@
         UX.bindOnce(byId("assigneeKeyword"), "keydown", function (event) { if (event.key === "Enter") loadAssigneeOptions(); });
         UX.bindOnce(byId("btnSidebarToggle"), "click", function () { setSidebarOpen(!state.sidebarOpen); });
         UX.bindOnce(byId("taskProgressRate"), "input", function () { syncProgressRateLabel(byId("taskProgressRate").value); });
+        UX.bindOnce(byId("taskWbsColor"), "input", function () {
+            var color = normalizeWbsColor(byId("taskWbsColor").value);
+            byId("taskWbsColor").value = color;
+            byId("taskWbsColorText").value = color;
+            clearFieldHighlight();
+        });
+        UX.bindOnce(byId("taskWbsColorText"), "input", function () { clearFieldHighlight(); });
+        UX.bindOnce(byId("taskWbsColorText"), "blur", function () {
+            var color = normalizeWbsColor(byId("taskWbsColorText").value);
+            byId("taskWbsColorText").value = color;
+            byId("taskWbsColor").value = color;
+            clearFieldHighlight();
+        });
         UX.bindOnce(byId("taskUrl"), "input", function () { clearFieldHighlight(); scheduleBlogRouteLookup(); });
         UX.bindOnce(byId("taskUrl"), "blur", function () { lookupBlogRouteInfo(); });
         UX.bindOnce(byId("btnSearchTaskAddress"), "click", function () {
@@ -585,7 +608,7 @@
             });
         });
         UX.bindOnce(byId("btnOpenBlogMap"), "click", function () { openBlogRouteInKakaoMap(); });
-        ["taskTitle", "taskParentTaskId", "taskStartDate", "taskDueDate", "taskActualStartDate", "taskActualEndDate", "taskUrl", "taskSupportAmount", "taskActualAmount", "taskProjectName", "taskAssigneeDisplay", "btnPickAssignee"].forEach(function (id) {
+        ["taskTitle", "taskParentTaskId", "taskWbsColor", "taskWbsColorText", "taskStartDate", "taskDueDate", "taskActualStartDate", "taskActualEndDate", "taskUrl", "taskSupportAmount", "taskActualAmount", "taskProjectName", "taskAssigneeDisplay", "btnPickAssignee"].forEach(function (id) {
             var target = byId(id);
             if (!target) return;
             target.addEventListener("focus", clearFieldHighlight);

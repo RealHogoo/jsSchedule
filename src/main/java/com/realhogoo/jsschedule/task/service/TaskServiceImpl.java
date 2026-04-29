@@ -22,6 +22,7 @@ import java.util.Set;
 @Service
 public class TaskServiceImpl implements TaskService {
     private static final int MAX_TASK_DEPTH = 3;
+    private static final String DEFAULT_WBS_COLOR = "#0F766E";
     private static final Set<String> ALLOWED_TASK_TYPES = new HashSet<String>(
         Arrays.asList("GENERAL", "DEVELOPMENT", "BLOG")
     );
@@ -99,6 +100,7 @@ public class TaskServiceImpl implements TaskService {
         java.math.BigDecimal actualAmount = optionalDecimal(params.get("actual_amount"), "actual_amount");
         String description = optionalText(params.get("description"));
         Integer progressRate = normalizeProgress(params.get("progress_rate"));
+        String wbsColor = normalizeWbsColor(params.get("wbs_color"));
 
         validateDateRange(startDate, dueDate);
         validateDateRange(actualStartDate, actualEndDate);
@@ -123,6 +125,7 @@ public class TaskServiceImpl implements TaskService {
         payload.put("actual_amount", actualAmount);
         payload.put("progress_rate", progressRate);
         payload.put("description", description);
+        payload.put("wbs_color", wbsColor);
 
         if (taskId == null) {
             taskMapper.syncTaskSequence();
@@ -381,6 +384,18 @@ public class TaskServiceImpl implements TaskService {
         } catch (NumberFormatException exception) {
             throw ApiException.badRequest("progress_rate must be numeric");
         }
+    }
+
+    private String normalizeWbsColor(Object value) {
+        String color = optionalText(value);
+        if (color == null) {
+            return DEFAULT_WBS_COLOR;
+        }
+        color = color.toUpperCase();
+        if (!color.matches("^#([0-9A-F]{6})$")) {
+            throw ApiException.badRequest("wbs_color must be a hex color like #0F766E");
+        }
+        return color;
     }
 
     private String optionalDate(Object value, String fieldName) {

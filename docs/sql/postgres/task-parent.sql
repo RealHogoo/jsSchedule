@@ -1,6 +1,9 @@
 ALTER TABLE schedule_task
     ADD COLUMN IF NOT EXISTS parent_task_id BIGINT;
 
+ALTER TABLE schedule_task
+    ADD COLUMN IF NOT EXISTS wbs_color VARCHAR(7);
+
 DO $$
 BEGIN
     IF NOT EXISTS (

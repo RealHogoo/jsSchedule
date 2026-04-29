@@ -2939,6 +2939,21 @@ body::-webkit-scrollbar-thumb:hover,
     gap: 8px;
 }
 
+.wbs-color-row {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 8px;
+}
+
+.wbs-color-input {
+    padding: 6px;
+    min-height: 42px;
+}
+
+.wbs-color-text {
+    text-transform: uppercase;
+}
+
 .range-field {
     display: grid;
     gap: 10px;
@@ -3427,6 +3442,7 @@ body::-webkit-scrollbar-thumb:hover,
     }
 
     .picker-row,
+    .wbs-color-row,
     .picker-search {
         grid-template-columns: 1fr;
     }

@@ -1057,10 +1057,12 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .calendar-day-chip-date {
+    display: block;
     font-size: 17px;
     font-weight: 800;
     line-height: 1.2;
     color: #0f172a;
+    text-align: center;
 }
 
 .calendar-day-chip-stats {

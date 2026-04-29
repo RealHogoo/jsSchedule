@@ -123,14 +123,10 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private String buildPublicRequestUrl(HttpServletRequest request) {
-        if (!publicBaseUrl.isEmpty()) {
-            return publicBaseUrl + path(request);
-        }
-
         String scheme = forwardedScheme(request);
         String host = forwardedHost(request);
         int port = forwardedPort(request, scheme);
-        String path = request.getRequestURI();
+        String path = path(request);
 
         StringBuilder builder = new StringBuilder();
         builder.append(scheme).append("://").append(host);
@@ -160,27 +156,38 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
 
     private String forwardedScheme(HttpServletRequest request) {
         String value = firstHeaderValue(request.getHeader("X-Forwarded-Proto"));
-        return value == null ? request.getScheme() : value;
+        if (value != null) {
+            return value;
+        }
+        URI fallback = fallbackPublicUri();
+        if (fallback != null && fallback.getScheme() != null && !fallback.getScheme().trim().isEmpty()) {
+            return fallback.getScheme().trim();
+        }
+        return request.getScheme();
     }
 
     private String forwardedHost(HttpServletRequest request) {
         String value = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
-        if (value == null) {
-            return request.getServerName();
+        if (value != null) {
+            try {
+                URI uri = URI.create("http://" + value);
+                return uri.getHost() == null ? request.getServerName() : uri.getHost();
+            } catch (Exception ignored) {
+                return value.split(":")[0].trim();
+            }
         }
-        try {
-            URI uri = URI.create("http://" + value);
-            return uri.getHost() == null ? request.getServerName() : uri.getHost();
-        } catch (Exception ignored) {
-            return value.split(":")[0].trim();
+        URI fallback = fallbackPublicUri();
+        if (fallback != null && fallback.getHost() != null && !fallback.getHost().trim().isEmpty()) {
+            return fallback.getHost().trim();
         }
+        return request.getServerName();
     }
 
     private int forwardedPort(HttpServletRequest request, String scheme) {
         String forwardedPort = firstHeaderValue(request.getHeader("X-Forwarded-Port"));
         if (forwardedPort != null) {
             try {
-                return Integer.parseInt(forwardedPort);
+                return normalizePort(Integer.parseInt(forwardedPort), scheme);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -188,9 +195,14 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         String forwardedHost = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
         if (forwardedHost != null && forwardedHost.contains(":")) {
             try {
-                return Integer.parseInt(forwardedHost.substring(forwardedHost.lastIndexOf(':') + 1).trim());
+                return normalizePort(Integer.parseInt(forwardedHost.substring(forwardedHost.lastIndexOf(':') + 1).trim()), scheme);
             } catch (NumberFormatException ignored) {
             }
+        }
+
+        URI fallback = fallbackPublicUri();
+        if (fallback != null) {
+            return normalizePort(fallback.getPort(), scheme);
         }
         return normalizePort(request.getServerPort(), scheme);
     }
@@ -202,7 +214,21 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         return value.split(",")[0].trim();
     }
 
+    private URI fallbackPublicUri() {
+        if (publicBaseUrl == null || publicBaseUrl.isEmpty()) {
+            return null;
+        }
+        try {
+            return URI.create(publicBaseUrl);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private int normalizePort(int port, String scheme) {
+        if ("https".equalsIgnoreCase(scheme) && port == 80) {
+            return 443;
+        }
         if (port > 0) {
             return port;
         }

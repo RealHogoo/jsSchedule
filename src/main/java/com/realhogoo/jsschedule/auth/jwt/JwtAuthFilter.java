@@ -224,17 +224,21 @@ public class JwtAuthFilter implements Filter {
     }
 
     private int forwardedPort(HttpServletRequest request) {
+        String scheme = forwardedScheme(request);
         String forwardedPort = request.getHeader("X-Forwarded-Port");
         if (forwardedPort != null && !forwardedPort.trim().isEmpty()) {
             try {
-                return Integer.parseInt(forwardedPort.trim());
+                return normalizePort(Integer.parseInt(forwardedPort.trim()), scheme);
             } catch (NumberFormatException ignored) {
             }
         }
-        return request.getServerPort();
+        return normalizePort(request.getServerPort(), scheme);
     }
 
     private int normalizePort(int port, String scheme) {
+        if ("https".equalsIgnoreCase(scheme) && port == 80) {
+            return 443;
+        }
         if (port > 0) {
             return port;
         }

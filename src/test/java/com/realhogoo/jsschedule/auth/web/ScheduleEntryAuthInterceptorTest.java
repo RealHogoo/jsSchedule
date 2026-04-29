@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
     "admin-service.public-base-url=https://adm.js65.myds.me",
-    "app.public-base-url=https://sch.js65.myds.me"
+    "app.public-base-url=http://localhost:8082"
 })
 @AutoConfigureMockMvc
 class ScheduleEntryAuthInterceptorTest {
@@ -32,7 +32,7 @@ class ScheduleEntryAuthInterceptorTest {
     private AdminServiceClient adminServiceClient;
 
     @Test
-    void redirectsUnauthenticatedRequestToPublicAdminLoginUrl() throws Exception {
+    void redirectsUnauthenticatedRequestToPublicAdminLoginUrlUsingForwardedHeaders() throws Exception {
         when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.emptyMap());
 
         String expectedRedirect =
@@ -42,6 +42,25 @@ class ScheduleEntryAuthInterceptorTest {
                 + URLEncoder.encode("https://sch.js65.myds.me/schedule.html", StandardCharsets.UTF_8);
 
         mockMvc.perform(get("/schedule.html")
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-Host", "sch.js65.myds.me")
+                .header("X-Forwarded-Port", "80"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl(expectedRedirect));
+    }
+
+    @Test
+    void redirectsUnauthenticatedRequestWithQueryStringUsingForwardedPublicUrl() throws Exception {
+        when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.emptyMap());
+
+        String expectedRedirect =
+            "https://adm.js65.myds.me/service-login-page.do?service_nm="
+                + URLEncoder.encode("Schedule Service", StandardCharsets.UTF_8)
+                + "&return_url="
+                + URLEncoder.encode("https://sch.js65.myds.me/task-form.html?project_id=3", StandardCharsets.UTF_8);
+
+        mockMvc.perform(get("/task-form.html")
+                .queryParam("project_id", "3")
                 .header("X-Forwarded-Proto", "https")
                 .header("X-Forwarded-Host", "sch.js65.myds.me")
                 .header("X-Forwarded-Port", "80"))

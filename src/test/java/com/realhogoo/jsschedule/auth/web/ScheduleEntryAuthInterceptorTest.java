@@ -82,4 +82,17 @@ class ScheduleEntryAuthInterceptorTest {
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl(expectedRedirect));
     }
+
+    @Test
+    void redirectsInsufficientPermissionRequestToHttpsProjectPage() throws Exception {
+        when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.singletonMap("user_id", "tester1"));
+
+        mockMvc.perform(get("/task-form.html")
+                .cookie(new javax.servlet.http.Cookie(AuthCookieSupport.ACCESS_TOKEN_COOKIE, "TOKEN"))
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-Host", "sch.js65.myds.me")
+                .header("X-Forwarded-Port", "80"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("https://sch.js65.myds.me/project.html"));
+    }
 }

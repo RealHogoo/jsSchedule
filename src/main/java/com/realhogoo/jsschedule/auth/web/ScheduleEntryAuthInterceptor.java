@@ -42,11 +42,11 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         String token = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
         if (isValidToken(token)) {
             if ("/".equals(path) || "/index.html".equals(path)) {
-                response.sendRedirect(request.getContextPath() + "/project.html");
+                response.sendRedirect(buildPublicRequestUrl(request, "/project.html"));
                 return false;
             }
             if (!hasRequiredPermission(path, token)) {
-                response.sendRedirect(request.getContextPath() + "/project.html");
+                response.sendRedirect(buildPublicRequestUrl(request, "/project.html"));
                 return false;
             }
             return true;
@@ -123,10 +123,13 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private String buildPublicRequestUrl(HttpServletRequest request) {
+        return buildPublicRequestUrl(request, path(request));
+    }
+
+    private String buildPublicRequestUrl(HttpServletRequest request, String path) {
         String scheme = forwardedScheme(request);
         String host = forwardedHost(request);
         int port = forwardedPort(request, scheme);
-        String path = path(request);
 
         StringBuilder builder = new StringBuilder();
         builder.append(scheme).append("://").append(host);

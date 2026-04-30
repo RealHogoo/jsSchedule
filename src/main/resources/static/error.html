@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jsSchedule 오류</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            background: #f6f8fb;
+            color: #1f2937;
+        }
+        .error-card {
+            width: min(520px, calc(100vw - 40px));
+            padding: 32px;
+            border: 1px solid #dbe2ea;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+            text-align: center;
+        }
+        .error-code {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 86px;
+            height: 36px;
+            margin-bottom: 16px;
+            border-radius: 999px;
+            background: #fff1f2;
+            color: #be123c;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+        .error-card h1 {
+            margin: 0 0 10px;
+            font-size: 24px;
+        }
+        .error-card p {
+            margin: 0 0 24px;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        .error-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .error-actions a,
+        .error-actions button {
+            height: 38px;
+            padding: 0 18px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+            color: #1f2937;
+            font: inherit;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .error-actions .primary {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+<main class="error-card">
+    <div id="errorCode" class="error-code">ERROR</div>
+    <h1 id="errorTitle">요청을 처리할 수 없습니다</h1>
+    <p id="errorMessage">잠시 후 다시 시도하거나 관리자에게 문의하세요.</p>
+    <div class="error-actions">
+        <a class="primary" href="/project.html">프로젝트로 이동</a>
+        <button type="button" onclick="history.back()">이전 화면</button>
+    </div>
+</main>
+<script>
+    (function () {
+        var params = new URLSearchParams(location.search || "");
+        var code = params.get("code") || "ERROR";
+        var message = params.get("message") || "잠시 후 다시 시도하거나 관리자에게 문의하세요.";
+        document.getElementById("errorCode").textContent = code;
+        if (code === "S4003") {
+            document.getElementById("errorTitle").textContent = "권한이 없습니다";
+        }
+        document.getElementById("errorMessage").textContent = message;
+        try { sessionStorage.removeItem("SCHEDULE_FORBIDDEN_ALERTED"); } catch (e) {}
+    })();
+</script>
+</body>
+</html>

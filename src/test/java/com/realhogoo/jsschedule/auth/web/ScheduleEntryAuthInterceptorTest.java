@@ -84,7 +84,7 @@ class ScheduleEntryAuthInterceptorTest {
     }
 
     @Test
-    void redirectsInsufficientPermissionRequestToHttpsProjectPage() throws Exception {
+    void redirectsInsufficientPermissionRequestToHttpsErrorPage() throws Exception {
         when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.singletonMap("user_id", "tester1"));
 
         mockMvc.perform(get("/task-form.html")
@@ -93,6 +93,6 @@ class ScheduleEntryAuthInterceptorTest {
                 .header("X-Forwarded-Host", "sch.js65.myds.me")
                 .header("X-Forwarded-Port", "80"))
             .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("https://sch.js65.myds.me/project.html"));
+            .andExpect(redirectedUrl("https://sch.js65.myds.me/error.html?code=S4003&message=%EA%B6%8C%ED%95%9C%EC%9D%B4+%EC%97%86%EC%8A%B5%EB%8B%88%EB%8B%A4.+%EA%B4%80%EB%A6%AC%EC%9E%90%EC%97%90%EA%B2%8C+%EA%B6%8C%ED%95%9C+%EC%84%A4%EC%A0%95%EC%9D%84+%EC%9A%94%EC%B2%AD%ED%95%98%EC%84%B8%EC%9A%94."));
     }
 }

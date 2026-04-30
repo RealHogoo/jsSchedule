@@ -46,7 +46,9 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
                 return false;
             }
             if (!hasRequiredPermission(path, token)) {
-                response.sendRedirect(buildPublicRequestUrl(request, "/project.html"));
+                response.sendRedirect(buildPublicRequestUrl(request, "/error.html")
+                    + "?code=S4003&message="
+                    + URLEncoder.encode("권한이 없습니다. 관리자에게 권한 설정을 요청하세요.", StandardCharsets.UTF_8));
                 return false;
             }
             return true;

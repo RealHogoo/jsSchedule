@@ -116,8 +116,32 @@
             headers: opts.headers || authHeaders(),
             body: JSON.stringify(body || {})
         }).then(function (response) {
-            return response.json();
+            return response.json().then(function (payload) {
+                if (response.status === 403 || (payload && payload.code === "S4003")) {
+                    handleForbidden(payload);
+                    return Promise.reject(payload);
+                }
+                return payload;
+            });
         });
+    }
+
+    function handleForbidden(payload) {
+        var message = payload && payload.message
+            ? payload.message
+            : "권한이 없습니다. 관리자에게 권한 설정을 요청하세요.";
+        try {
+            if (sessionStorage.getItem("SCHEDULE_FORBIDDEN_ALERTED") !== "1") {
+                sessionStorage.setItem("SCHEDULE_FORBIDDEN_ALERTED", "1");
+                global.alert(message);
+            }
+        } catch (e) {
+            global.alert(message);
+        }
+        var target = "/error.html?code=S4003&message=" + encodeURIComponent(message);
+        if (global.location.pathname !== "/error.html") {
+            global.location.href = target;
+        }
     }
 
     var releaseInfoPromise = null;

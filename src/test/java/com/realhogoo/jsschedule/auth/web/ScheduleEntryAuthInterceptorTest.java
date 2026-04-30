@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
     "admin-service.public-base-url=https://adm.js65.myds.me",
-    "app.public-base-url=http://localhost:8082"
+    "SCHEDULE_SERVICE_PUBLIC_BASE_URL=https://sch.js65.myds.me"
 })
 @AutoConfigureMockMvc
 class ScheduleEntryAuthInterceptorTest {
@@ -64,6 +64,21 @@ class ScheduleEntryAuthInterceptorTest {
                 .header("X-Forwarded-Proto", "https")
                 .header("X-Forwarded-Host", "sch.js65.myds.me")
                 .header("X-Forwarded-Port", "80"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl(expectedRedirect));
+    }
+
+    @Test
+    void redirectsUnauthenticatedRequestUsingScheduleServicePublicBaseUrl() throws Exception {
+        when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.emptyMap());
+
+        String expectedRedirect =
+            "https://adm.js65.myds.me/service-login-page.do?service_nm="
+                + URLEncoder.encode("Schedule Service", StandardCharsets.UTF_8)
+                + "&return_url="
+                + URLEncoder.encode("https://sch.js65.myds.me/dashboard.html", StandardCharsets.UTF_8);
+
+        mockMvc.perform(get("/dashboard.html"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl(expectedRedirect));
     }

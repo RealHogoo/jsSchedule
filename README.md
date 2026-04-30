@@ -118,7 +118,7 @@ ALTER TABLE schedule_task
 ```powershell
 $env:APP_ENV="dev"
 $env:SERVICE_ID="schedule-service"
-$env:PUBLIC_BASE_URL="https://sch.js65.myds.me"
+$env:SCHEDULE_SERVICE_PUBLIC_BASE_URL="https://sch.js65.myds.me"
 $env:SCHEDULE_DB_URL="jdbc:postgresql://localhost:5432/schedule"
 $env:SCHEDULE_DB_USERNAME="postgres"
 $env:SCHEDULE_DB_PASSWORD="postgres"
@@ -134,7 +134,7 @@ $env:ADMIN_SERVICE_PUBLIC_BASE_URL="https://adm.js65.myds.me"
 
 - `ADMIN_SERVICE_BASE_URL`은 내부 호출 주소
 - `ADMIN_SERVICE_PUBLIC_BASE_URL`은 로그인 페이지 외부 주소
-- `PUBLIC_BASE_URL`은 schedule 공개 주소
+- `SCHEDULE_SERVICE_PUBLIC_BASE_URL`은 schedule 공개 주소
 
 로 나눠서 설정하는 구성을 권장합니다.
 

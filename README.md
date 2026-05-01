@@ -168,6 +168,13 @@ $env:ADMIN_SERVICE_PUBLIC_BASE_URL="https://adm.js65.myds.me"
 - 소스와 문서는 UTF-8 기준입니다.
 - Windows PowerShell에서 한글이 깨져 보이면 `Get-Content -Encoding UTF8 <파일명>`으로 확인합니다.
 - `.editorconfig`로 UTF-8 저장 기준을 고정합니다.
+- 깨진 문자열 점검은 `.\scripts\check-encoding.ps1`로 실행합니다.
+
+## 배포 점검
+
+- 운영 DB 반영 SQL은 `docs/sql/postgres/deploy-20260501-current.sql`입니다.
+- 배포 후 스모크 체크는 `.\scripts\check-deploy-smoke.ps1`로 실행합니다.
+- 스모크 체크는 어드민/스케줄러 `ready`, `version`, 스케줄러 미인증 `return_url` 리다이렉트를 확인합니다.
 
 ## 문서
 

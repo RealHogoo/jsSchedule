@@ -101,7 +101,7 @@ public class AdminServiceClient {
         } catch (HttpStatusCodeException exception) {
             return parseErrorBody(exception.getResponseBodyAsString(), exception.getStatusCode());
         } catch (RestClientException exception) {
-            throw new ApiException(ApiCode.SERVER_ERROR, HttpStatus.BAD_GATEWAY, "admin-service request failed");
+            throw new ApiException(ApiCode.SERVER_ERROR, HttpStatus.BAD_GATEWAY, "어드민 서비스 요청에 실패했습니다.");
         }
     }
 
@@ -116,7 +116,7 @@ public class AdminServiceClient {
         Map<String, Object> fallback = new LinkedHashMap<String, Object>();
         fallback.put("ok", false);
         fallback.put("code", statusCode.value() == 401 ? ApiCode.UNAUTHORIZED.name() : ApiCode.SERVER_ERROR.name());
-        fallback.put("message", statusCode.value() == 401 ? "login required" : "admin-service request failed");
+        fallback.put("message", statusCode.value() == 401 ? "로그인이 필요합니다." : "어드민 서비스 요청에 실패했습니다.");
         fallback.put("data", null);
         return fallback;
     }

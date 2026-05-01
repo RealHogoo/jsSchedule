@@ -450,7 +450,7 @@ public class NodeServiceImpl implements NodeService {
 
     private void ensureAdmin(List<String> viewerRoles) {
         if (!RoleSupport.isAdmin(viewerRoles)) {
-            throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "admin role is required");
+            throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, ApiCode.FORBIDDEN.defaultMessage());
         }
     }
 

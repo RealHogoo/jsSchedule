@@ -65,6 +65,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
             || "/dashboard.html".equals(path)
             || "/schedule.html".equals(path)
             || "/task.html".equals(path)
+            || "/wbs.html".equals(path)
             || "/project-form.html".equals(path)
             || "/task-form.html".equals(path);
     }

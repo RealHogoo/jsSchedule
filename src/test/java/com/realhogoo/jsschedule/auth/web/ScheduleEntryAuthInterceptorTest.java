@@ -69,6 +69,24 @@ class ScheduleEntryAuthInterceptorTest {
     }
 
     @Test
+    void redirectsUnauthenticatedWbsPageToAdminLoginUrl() throws Exception {
+        when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.emptyMap());
+
+        String expectedRedirect =
+            "https://adm.js65.myds.me/service-login-page.do?service_nm="
+                + URLEncoder.encode("Schedule Service", StandardCharsets.UTF_8)
+                + "&return_url="
+                + URLEncoder.encode("https://sch.js65.myds.me/wbs.html", StandardCharsets.UTF_8);
+
+        mockMvc.perform(get("/wbs.html")
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-Host", "sch.js65.myds.me")
+                .header("X-Forwarded-Port", "80"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl(expectedRedirect));
+    }
+
+    @Test
     void redirectsUnauthenticatedRequestUsingScheduleServicePublicBaseUrl() throws Exception {
         when(adminServiceClient.fetchCurrentUser(anyString())).thenReturn(Collections.emptyMap());
 

@@ -25,6 +25,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(scheduleEntryAuthInterceptor)
-            .addPathPatterns("/", "/index.html", "/project.html", "/dashboard.html", "/schedule.html", "/calendar.html", "/task.html", "/task-form.html", "/project-form.html");
+            .addPathPatterns("/", "/index.html", "/project.html", "/dashboard.html", "/schedule.html", "/calendar.html", "/task.html", "/wbs.html", "/task-form.html", "/project-form.html");
     }
 }

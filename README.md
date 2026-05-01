@@ -21,6 +21,23 @@
 - 공개 URL 생성 시 `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port`를 우선 사용합니다.
 - `https` 요청인데 `X-Forwarded-Port=80`으로 들어오면 `return_url` 생성 시 `443`으로 보정합니다.
 
+운영 프록시 필수 헤더:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Port $server_port;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+운영 도메인 기준:
+
+- `ADMIN_SERVICE_PUBLIC_BASE_URL=https://adm.js65.myds.me`
+- `SCHEDULE_SERVICE_PUBLIC_BASE_URL=https://sch.js65.myds.me`
+- 미인증 상태에서 `https://sch.js65.myds.me/wbs.html` 접근 시 `https://adm.js65.myds.me/service-login-page.do?...return_url=https%3A%2F%2Fsch.js65.myds.me%2Fwbs.html` 형태로 이동해야 합니다.
+- `X-Forwarded-Proto=https`, `X-Forwarded-Port=80` 조합이어도 `return_url`에 `:80`이 붙으면 안 됩니다.
+
 현재 적용 중인 서비스 권한:
 
 - `DASHBOARD_ACCESS`
@@ -45,6 +62,14 @@
 - `/schedule.html`
 - `/task.html`
 - `/wbs.html`
+
+권한 점검 체크리스트:
+
+- 비로그인 사용자는 인증 진입 페이지 접근 시 어드민 로그인 페이지로 이동합니다.
+- 일반 로그인 사용자는 `/project.html`, `/schedule.html`, `/task.html`, `/wbs.html` 화면에 접근할 수 있습니다.
+- `DASHBOARD_ACCESS`가 없는 사용자는 `/dashboard.html` 접근 시 권한 없음 에러 페이지로 이동합니다.
+- `WRITE`가 없는 사용자는 `/project-form.html`, `/task-form.html` 접근 시 권한 없음 에러 페이지로 이동합니다.
+- 저장/삭제 API는 권한이 없을 때 JSON 오류와 한글 메시지를 반환해야 합니다.
 
 ## 주요 API
 
@@ -137,6 +162,12 @@ $env:ADMIN_SERVICE_PUBLIC_BASE_URL="https://adm.js65.myds.me"
 - `SCHEDULE_SERVICE_PUBLIC_BASE_URL`은 schedule 공개 주소
 
 로 나눠서 설정하는 구성을 권장합니다.
+
+## 인코딩
+
+- 소스와 문서는 UTF-8 기준입니다.
+- Windows PowerShell에서 한글이 깨져 보이면 `Get-Content -Encoding UTF8 <파일명>`으로 확인합니다.
+- `.editorconfig`로 UTF-8 저장 기준을 고정합니다.
 
 ## 문서
 

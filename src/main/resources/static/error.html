@@ -5,90 +5,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>jsSchedule 오류</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/css/common.css">
     <style>
+        :root {
+            --bg: #eef3f7;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #475569;
+            --line: #d8e0ea;
+            --primary: #2563eb;
+            --danger: #be123c;
+            --danger-bg: #fff1f2;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             min-height: 100vh;
             margin: 0;
             display: grid;
             place-items: center;
-            background: #f6f8fb;
-            color: #1f2937;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 34rem),
+                linear-gradient(135deg, #f8fafc 0%, var(--bg) 100%);
+            color: var(--text);
+            font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
         }
+
         .error-card {
-            width: min(520px, calc(100vw - 40px));
-            padding: 32px;
-            border: 1px solid #dbe2ea;
-            border-radius: 18px;
-            background: #fff;
-            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+            width: min(560px, 100%);
+            padding: 36px 32px;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--card);
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
             text-align: center;
         }
+
         .error-code {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 86px;
-            height: 36px;
-            margin-bottom: 16px;
+            min-width: 92px;
+            height: 38px;
+            margin-bottom: 18px;
+            padding: 0 18px;
             border-radius: 999px;
-            background: #fff1f2;
-            color: #be123c;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13px;
             font-weight: 800;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
         }
+
         .error-card h1 {
-            margin: 0 0 10px;
-            font-size: 24px;
+            margin: 0 0 12px;
+            font-size: clamp(24px, 4vw, 30px);
+            line-height: 1.25;
+            letter-spacing: -0.04em;
         }
+
         .error-card p {
-            margin: 0 0 24px;
-            line-height: 1.6;
-            color: #4b5563;
+            margin: 0 auto 28px;
+            max-width: 440px;
+            line-height: 1.7;
+            color: var(--muted);
+            word-break: keep-all;
         }
+
         .error-actions {
             display: flex;
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
         }
+
         .error-actions a,
         .error-actions button {
-            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 112px;
+            height: 42px;
             padding: 0 18px;
             border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            border-radius: 11px;
             background: #fff;
-            color: #1f2937;
+            color: var(--text);
             font: inherit;
+            font-weight: 700;
             cursor: pointer;
             text-decoration: none;
         }
+
         .error-actions .primary {
-            border-color: #2563eb;
-            background: #2563eb;
+            border-color: var(--primary);
+            background: var(--primary);
             color: #fff;
+        }
+
+        @media (max-width: 520px) {
+            .error-card {
+                padding: 28px 20px;
+                border-radius: 18px;
+            }
+
+            .error-actions {
+                flex-direction: column;
+            }
+
+            .error-actions a,
+            .error-actions button {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
 <main class="error-card">
     <div id="errorCode" class="error-code">ERROR</div>
-    <h1 id="errorTitle">요청을 처리할 수 없습니다</h1>
-    <p id="errorMessage">잠시 후 다시 시도하거나 관리자에게 문의하세요.</p>
+    <h1 id="errorTitle">&#xc694;&#xccad;&#xc744; &#xcc98;&#xb9ac;&#xd560; &#xc218; &#xc5c6;&#xc2b5;&#xb2c8;&#xb2e4;</h1>
+    <p id="errorMessage">&#xc7a0;&#xc2dc; &#xd6c4; &#xb2e4;&#xc2dc; &#xc2dc;&#xb3c4;&#xd558;&#xac70;&#xb098; &#xad00;&#xb9ac;&#xc790;&#xc5d0;&#xac8c; &#xbb38;&#xc758;&#xd558;&#xc138;&#xc694;.</p>
     <div class="error-actions">
-        <a class="primary" href="/project.html">프로젝트로 이동</a>
-        <button type="button" onclick="history.back()">이전 화면</button>
+        <a class="primary" href="/project.html">&#xd504;&#xb85c;&#xc81d;&#xd2b8;&#xb85c; &#xc774;&#xb3d9;</a>
+        <button type="button" onclick="history.back()">&#xc774;&#xc804; &#xd654;&#xba74;</button>
     </div>
 </main>
 <script>
     (function () {
+        var DEFAULT_MESSAGE = "\uc7a0\uc2dc \ud6c4 \ub2e4\uc2dc \uc2dc\ub3c4\ud558\uac70\ub098 \uad00\ub9ac\uc790\uc5d0\uac8c \ubb38\uc758\ud558\uc138\uc694.";
+        var FORBIDDEN_MESSAGE = "\uad8c\ud55c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \uad00\ub9ac\uc790\uc5d0\uac8c \uc2a4\ucf00\uc904\ub7ec \uc811\uadfc \uad8c\ud55c \uc124\uc815\uc744 \uc694\uccad\ud558\uc138\uc694.";
         var params = new URLSearchParams(location.search || "");
         var code = params.get("code") || "ERROR";
-        var message = params.get("message") || "잠시 후 다시 시도하거나 관리자에게 문의하세요.";
-        document.getElementById("errorCode").textContent = code;
+        var message = params.get("message") || DEFAULT_MESSAGE;
+
+        if (/service permission is required|permission|forbidden|admin role is required/i.test(message)) {
+            message = FORBIDDEN_MESSAGE;
+        }
+
+        document.getElementById("errorCode").textContent = code === "S4003" ? "\uad8c\ud55c \uc624\ub958" : code;
         if (code === "S4003") {
-            document.getElementById("errorTitle").textContent = "권한이 없습니다";
+            document.getElementById("errorTitle").textContent = "\uad8c\ud55c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4";
+            message = message || FORBIDDEN_MESSAGE;
         }
         document.getElementById("errorMessage").textContent = message;
         try { sessionStorage.removeItem("SCHEDULE_FORBIDDEN_ALERTED"); } catch (e) {}

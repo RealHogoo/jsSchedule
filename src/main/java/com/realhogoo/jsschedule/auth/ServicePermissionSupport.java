@@ -32,7 +32,7 @@ public final class ServicePermissionSupport {
 
     public static void ensurePermission(HttpServletRequest request, String permissionCode) {
         if (!hasPermission(request, permissionCode)) {
-            throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "service permission is required: " + permissionCode);
+            throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "\uad8c\ud55c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \uad00\ub9ac\uc790\uc5d0\uac8c \uc2a4\ucf00\uc904\ub7ec \uc811\uadfc \uad8c\ud55c \uc124\uc815\uc744 \uc694\uccad\ud558\uc138\uc694.");
         }
     }
 

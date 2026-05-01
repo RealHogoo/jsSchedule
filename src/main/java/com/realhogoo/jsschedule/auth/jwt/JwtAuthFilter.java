@@ -54,7 +54,7 @@ public class JwtAuthFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         if (!"POST".equalsIgnoreCase(httpRequest.getMethod())) {
-            writeJson(httpResponse, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "POST only", httpRequest));
+            writeJson(httpResponse, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "\ud5c8\uc6a9\ub418\uc9c0 \uc54a\uc740 \uc694\uccad \ubc29\uc2dd\uc785\ub2c8\ub2e4.", httpRequest));
             return;
         }
 
@@ -68,24 +68,24 @@ public class JwtAuthFilter implements Filter {
         String cookieToken = normalizeToken(AuthCookieSupport.readCookie(httpRequest, AuthCookieSupport.ACCESS_TOKEN_COOKIE));
         String token = authorizationToken.isEmpty() ? cookieToken : authorizationToken;
         if (token.isEmpty()) {
-            writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", httpRequest));
+            writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "\ub85c\uadf8\uc778\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.", httpRequest));
             return;
         }
         if (authorizationToken.isEmpty() && cookieToken != null && isCrossSiteRequest(httpRequest)) {
-            writeJson(httpResponse, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "cross-site cookie request blocked", httpRequest));
+            writeJson(httpResponse, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "\uc778\uc99d \ucfe0\ud0a4\ub97c \uc0ac\uc6a9\ud560 \uc218 \uc5c6\ub294 \uc694\uccad\uc785\ub2c8\ub2e4.", httpRequest));
             return;
         }
 
         try {
             AdminServiceClient client = adminServiceClient != null ? adminServiceClient : resolveAdminServiceClient();
             if (client == null) {
-                writeJson(httpResponse, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "admin auth client unavailable", httpRequest));
+                writeJson(httpResponse, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "\uc778\uc99d \uc11c\ube44\uc2a4\uc5d0 \uc5f0\uacb0\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.", httpRequest));
                 return;
             }
 
             Map<String, Object> currentUser = client.fetchCurrentUser(token);
             if (currentUser == null || currentUser.isEmpty()) {
-                writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "invalid token", httpRequest));
+                writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "\ub85c\uadf8\uc778 \uc815\ubcf4\uac00 \uc720\ud6a8\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.", httpRequest));
                 return;
             }
 
@@ -98,7 +98,7 @@ public class JwtAuthFilter implements Filter {
 
             chain.doFilter(request, response);
         } catch (Exception exception) {
-            writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "invalid token", httpRequest));
+            writeJson(httpResponse, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "\ub85c\uadf8\uc778 \uc815\ubcf4\uac00 \uc720\ud6a8\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.", httpRequest));
         }
     }
 

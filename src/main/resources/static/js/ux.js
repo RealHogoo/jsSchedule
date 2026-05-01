@@ -126,10 +126,19 @@
         });
     }
 
+    function normalizeForbiddenMessage(message) {
+        var text = normalizeText(message, "");
+        if (!text || /service permission is required|permission|forbidden|admin role is required/i.test(text)) {
+            return "\uad8c\ud55c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \uad00\ub9ac\uc790\uc5d0\uac8c \uc2a4\ucf00\uc904\ub7ec \uc811\uadfc \uad8c\ud55c \uc124\uc815\uc744 \uc694\uccad\ud558\uc138\uc694.";
+        }
+        return text;
+    }
+
     function handleForbidden(payload) {
         var message = payload && payload.message
             ? payload.message
             : "권한이 없습니다. 관리자에게 권한 설정을 요청하세요.";
+        message = normalizeForbiddenMessage(message);
         try {
             if (sessionStorage.getItem("SCHEDULE_FORBIDDEN_ALERTED") !== "1") {
                 sessionStorage.setItem("SCHEDULE_FORBIDDEN_ALERTED", "1");

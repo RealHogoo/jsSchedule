@@ -13,4 +13,9 @@ public interface ProjectMapper {
     int countProjectKey(Map<String, Object> params);
     int insertProject(Map<String, Object> params);
     int updateProject(Map<String, Object> params);
+    List<Map<String, Object>> selectProjectMemberList(Map<String, Object> params);
+    int countProjectMember(Map<String, Object> params);
+    int insertProjectMember(Map<String, Object> params);
+    int upsertProjectOwner(Map<String, Object> params);
+    int deleteProjectMember(Map<String, Object> params);
 }

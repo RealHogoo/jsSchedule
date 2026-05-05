@@ -16,6 +16,14 @@
         global.location.href = "/project.html";
     }
 
+    function openProjectMembers() {
+        if (!state.projectId) {
+            setFormMessage("\uD504\uB85C\uC81D\uD2B8 \uC800\uC7A5 \uD6C4 \uC0AC\uC6A9\uC790\uB97C \uAD00\uB9AC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.", "error");
+            return;
+        }
+        global.location.href = "/project-member.html?project_id=" + encodeURIComponent(String(state.projectId));
+    }
+
     function queryParam(name) {
         return new URLSearchParams(global.location.search).get(name);
     }
@@ -132,6 +140,7 @@
         UX.byId("projectDescription").value = project && project.description ? String(project.description) : "";
         UX.setText("formPageTitle", isEdit ? "프로젝트 수정" : "신규 프로젝트 등록");
         UX.setText("formModeLabel", isEdit ? "수정" : "신규");
+        UX.setDisabled(UX.byId("btnManageProjectMembers"), !isEdit);
 
         if (isEdit) {
             meta.push("<span>프로젝트 ID " + UX.esc(String(project.project_id || "-")) + "</span>");
@@ -347,6 +356,7 @@
         UX.bindOnce(UX.byId("btnBackToList"), "click", backToList);
         UX.bindOnce(UX.byId("btnCancelProject"), "click", backToList);
         UX.bindOnce(UX.byId("btnSaveProject"), "click", saveProject);
+        UX.bindOnce(UX.byId("btnManageProjectMembers"), "click", openProjectMembers);
         UX.bindOnce(UX.byId("btnPickManager"), "click", function () {
             toggleManagerModal(true);
             loadManagerOptions();

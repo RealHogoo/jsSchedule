@@ -10,6 +10,8 @@
         initialTaskId: "",
         project: null,
         tasks: [],
+        comments: [],
+        commentReplyParentId: "",
         selectedTaskId: "",
         taskMode: "list",
         blogRouteInfo: null,
@@ -65,6 +67,7 @@
 
     function setTaskMessage(text, type) { setMessage("taskActionMsg", text, type); }
     function setTaskFormMessage(text, type) { setMessage("taskFormMsg", text, type); }
+    function setTaskCommentMessage(text, type) { setMessage("taskCommentMsg", text, type); }
     function apiMessage(response, fallback) {
         if (response && response.code && response.message) return "[" + response.code + "] " + response.message;
         if (response && response.message) return response.message;
@@ -402,6 +405,7 @@
 
     function renderTaskForm(task) {
         state.selectedTaskId = task && task.task_id ? String(task.task_id) : "";
+        state.commentReplyParentId = "";
         setTaskMode("form");
         byId("taskId").value = task && task.task_id ? String(task.task_id) : "";
         byId("taskTitle").value = task && task.task_title ? String(task.task_title) : "";
@@ -423,6 +427,8 @@
         if (isBlogProject() && projectOriginAddress()) byId("taskMeta").innerHTML += "<span>기본 출발지 " + esc(projectOriginAddress()) + "</span>";
         setTaskFormMessage("", "");
         renderTaskTable();
+        renderTaskCommentsShell();
+        if (state.selectedTaskId) loadTaskComments();
         if (isBlogProject()) scheduleBlogRouteLookup();
     }
 
@@ -432,6 +438,9 @@
         setTaskMode("list");
         renderTaskTable();
         setTaskFormMessage("", "");
+        state.comments = [];
+        state.commentReplyParentId = "";
+        renderTaskCommentsShell();
     }
 
     function createTaskPayload() {
@@ -486,6 +495,161 @@
         renderTaskForm(task);
     }
 
+    function commentAuthorLabel(comment) {
+        return userLabel(comment && comment.created_by_user_nm, comment && comment.created_by_user_id);
+    }
+
+    function commentDateLabel(value) {
+        if (!value) return "";
+        return String(value).replace("T", " ").slice(0, 16);
+    }
+
+    function findComment(commentId) {
+        var targetId = String(commentId || "");
+        return state.comments.find(function (comment) {
+            return String(comment.comment_id || "") === targetId;
+        }) || null;
+    }
+
+    function renderTaskCommentsShell() {
+        var section = byId("taskCommentSection");
+        var rows = byId("taskCommentRows");
+        var textarea = byId("taskCommentContent");
+        var button = byId("btnSaveTaskComment");
+        if (!section || !rows) return;
+
+        section.hidden = false;
+        setTaskCommentMessage("", "");
+        if (!state.selectedTaskId) {
+            if (textarea) {
+                textarea.value = "";
+                textarea.disabled = true;
+                textarea.placeholder = "태스크 저장 후 댓글을 등록할 수 있습니다.";
+            }
+            if (button) button.disabled = true;
+            rows.innerHTML = "<div class=\"detail-empty\">태스크를 저장하면 댓글을 등록할 수 있습니다.</div>";
+            return;
+        }
+
+        if (textarea) {
+            textarea.disabled = false;
+            textarea.placeholder = state.commentReplyParentId ? "답글을 입력하세요." : "댓글을 입력하세요.";
+        }
+        if (button) {
+            button.disabled = false;
+            UX.setText(button, state.commentReplyParentId ? "답글 등록" : "댓글 등록");
+        }
+    }
+
+    function renderTaskComments() {
+        var rows = byId("taskCommentRows");
+        var grouped = {};
+        var roots = [];
+        if (!rows) return;
+        renderTaskCommentsShell();
+        if (!state.selectedTaskId) return;
+        if (!state.comments.length) {
+            rows.innerHTML = "<div class=\"detail-empty\">등록된 댓글이 없습니다.</div>";
+            return;
+        }
+
+        state.comments.forEach(function (comment) {
+            var parentId = comment.parent_comment_id ? String(comment.parent_comment_id) : "";
+            if (parentId) {
+                grouped[parentId] = comment;
+            } else {
+                roots.push(comment);
+            }
+        });
+
+        rows.innerHTML = roots.map(function (comment) {
+            var commentId = String(comment.comment_id || "");
+            var reply = grouped[commentId];
+            var canReply = !reply;
+            return "<article class=\"comment-card\" data-comment-id=\"" + esc(commentId) + "\">"
+                + "<div class=\"comment-main\"><div class=\"comment-meta\"><strong>" + esc(commentAuthorLabel(comment) || "-") + "</strong><span>" + esc(commentDateLabel(comment.created_at)) + "</span></div>"
+                + "<p>" + esc(comment.comment_content || "") + "</p>"
+                + "<div class=\"comment-actions\"><button type=\"button\" class=\"btn btn-mini comment-reply-action\" data-comment-id=\"" + esc(commentId) + "\"" + (canReply ? "" : " disabled") + ">답글</button>"
+                + "<button type=\"button\" class=\"btn btn-mini btn-danger comment-delete-action\" data-comment-id=\"" + esc(commentId) + "\">삭제</button></div></div>"
+                + (reply ? renderReplyComment(reply) : "")
+                + "</article>";
+        }).join("");
+    }
+
+    function renderReplyComment(reply) {
+        var replyId = String(reply.comment_id || "");
+        return "<div class=\"comment-reply\" data-comment-id=\"" + esc(replyId) + "\">"
+            + "<div class=\"comment-meta\"><strong>" + esc(commentAuthorLabel(reply) || "-") + "</strong><span>" + esc(commentDateLabel(reply.created_at)) + "</span></div>"
+            + "<p>" + esc(reply.comment_content || "") + "</p>"
+            + "<div class=\"comment-actions\"><button type=\"button\" class=\"btn btn-mini btn-danger comment-delete-action\" data-comment-id=\"" + esc(replyId) + "\">삭제</button></div>"
+            + "</div>";
+    }
+
+    function loadTaskComments() {
+        if (!state.selectedTaskId) {
+            renderTaskComments();
+            return Promise.resolve();
+        }
+        byId("taskCommentRows").innerHTML = "<div class=\"detail-empty\">댓글을 불러오는 중입니다.</div>";
+        return UX.requestJson("/task/comment/list.json", { task_id: state.selectedTaskId }).then(function (response) {
+            if (!response || response.ok !== true) {
+                state.comments = [];
+                byId("taskCommentRows").innerHTML = "<div class=\"detail-empty\">댓글을 불러오지 못했습니다.</div>";
+                return;
+            }
+            state.comments = Array.isArray(response.data) ? response.data : [];
+            renderTaskComments();
+        }).catch(function () {
+            state.comments = [];
+            byId("taskCommentRows").innerHTML = "<div class=\"detail-empty\">댓글을 불러오지 못했습니다.</div>";
+        });
+    }
+
+    function startCommentReply(commentId) {
+        var comment = findComment(commentId);
+        if (!comment || comment.parent_comment_id) return;
+        if (comment.has_reply === true || comment.has_reply === "true") {
+            setTaskCommentMessage("이미 답글이 등록된 댓글입니다.", "error");
+            return;
+        }
+        state.commentReplyParentId = String(commentId || "");
+        byId("taskCommentContent").value = "";
+        renderTaskCommentsShell();
+        byId("taskCommentContent").focus();
+        setTaskCommentMessage("답글 작성 중입니다.", "");
+    }
+
+    function saveTaskComment() {
+        var content = byId("taskCommentContent").value.trim();
+        if (!state.selectedTaskId) { setTaskCommentMessage("태스크 저장 후 댓글을 등록할 수 있습니다.", "error"); return; }
+        if (!content) { setTaskCommentMessage("댓글 내용을 입력하세요.", "error"); byId("taskCommentContent").focus(); return; }
+        UX.requestJson("/task/comment/save.json", {
+            task_id: state.selectedTaskId,
+            parent_comment_id: state.commentReplyParentId || null,
+            comment_content: content
+        }).then(function (response) {
+            if (!response || response.ok !== true) { setTaskCommentMessage(apiMessage(response, "댓글 저장에 실패했습니다."), "error"); return; }
+            byId("taskCommentContent").value = "";
+            state.commentReplyParentId = "";
+            setTaskCommentMessage("댓글이 등록되었습니다.", "success");
+            loadTaskComments();
+        }).catch(function () {
+            setTaskCommentMessage("댓글 저장에 실패했습니다.", "error");
+        });
+    }
+
+    function deleteTaskComment(commentId) {
+        if (!commentId) return;
+        UX.requestJson("/task/comment/delete.json", { comment_id: commentId }).then(function (response) {
+            if (!response || response.ok !== true) { setTaskCommentMessage(apiMessage(response, "댓글 삭제에 실패했습니다."), "error"); return; }
+            if (String(state.commentReplyParentId) === String(commentId)) state.commentReplyParentId = "";
+            setTaskCommentMessage("댓글이 삭제되었습니다.", "success");
+            loadTaskComments();
+        }).catch(function () {
+            setTaskCommentMessage("댓글 삭제에 실패했습니다.", "error");
+        });
+    }
+
     function toggleAssigneeModal(open) {
         byId("assigneeModal").hidden = !open;
         if (open) byId("assigneeKeyword").focus();
@@ -509,7 +673,7 @@
 
     function loadAssigneeOptions() {
         byId("assigneeList").innerHTML = "<div class=\"detail-empty\">사용자 목록을 조회하는 중입니다.</div>";
-        UX.requestJson("/project/manager-options.json", { keyword: byId("assigneeKeyword").value.trim() }).then(function (response) {
+        UX.requestJson("/project/member/list.json", { project_id: state.projectId, keyword: byId("assigneeKeyword").value.trim() }).then(function (response) {
             if (!response || response.ok !== true) { byId("assigneeList").innerHTML = "<div class=\"detail-empty\">사용자 목록을 불러오지 못했습니다.</div>"; return; }
             renderAssigneeList(Array.isArray(response.data) ? response.data : []);
         }).catch(function () { byId("assigneeList").innerHTML = "<div class=\"detail-empty\">사용자 목록을 불러오지 못했습니다.</div>"; });
@@ -570,6 +734,18 @@
         UX.bindOnce(byId("btnBackToTaskListInline"), "click", backToTaskList);
         UX.bindOnce(byId("btnCancelTaskInline"), "click", backToTaskList);
         UX.bindOnce(byId("btnSaveTaskInline"), "click", saveTask);
+        UX.bindOnce(byId("btnSaveTaskComment"), "click", saveTaskComment);
+        UX.bindOnce(byId("taskCommentRows"), "click", function (event) {
+            var replyButton = event.target && event.target.closest ? event.target.closest(".comment-reply-action") : null;
+            var deleteButton = event.target && event.target.closest ? event.target.closest(".comment-delete-action") : null;
+            if (replyButton && !replyButton.disabled) {
+                startCommentReply(replyButton.getAttribute("data-comment-id") || "");
+                return;
+            }
+            if (deleteButton) {
+                deleteTaskComment(deleteButton.getAttribute("data-comment-id") || "");
+            }
+        });
         UX.bindOnce(byId("btnPickAssignee"), "click", function () { toggleAssigneeModal(true); loadAssigneeOptions(); });
         UX.bindOnce(byId("btnCloseAssigneeModal"), "click", function () { toggleAssigneeModal(false); });
         UX.bindOnce(byId("btnSearchAssignee"), "click", loadAssigneeOptions);
@@ -608,7 +784,7 @@
             });
         });
         UX.bindOnce(byId("btnOpenBlogMap"), "click", function () { openBlogRouteInKakaoMap(); });
-        ["taskTitle", "taskParentTaskId", "taskWbsColor", "taskWbsColorText", "taskStartDate", "taskDueDate", "taskActualStartDate", "taskActualEndDate", "taskUrl", "taskSupportAmount", "taskActualAmount", "taskProjectName", "taskAssigneeDisplay", "btnPickAssignee"].forEach(function (id) {
+        ["taskTitle", "taskParentTaskId", "taskWbsColor", "taskWbsColorText", "taskStartDate", "taskDueDate", "taskActualStartDate", "taskActualEndDate", "taskUrl", "taskSupportAmount", "taskActualAmount", "taskProjectName", "taskAssigneeDisplay", "btnPickAssignee", "taskCommentContent"].forEach(function (id) {
             var target = byId(id);
             if (!target) return;
             target.addEventListener("focus", clearFieldHighlight);

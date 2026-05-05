@@ -153,4 +153,80 @@
             updated_at = CURRENT_TIMESTAMP
         WHERE project_id = #{project_id}
     </update>
+
+    <select id="selectProjectMemberList" parameterType="map" resultType="map">
+        SELECT
+            pm.project_member_id,
+            pm.project_id,
+            pm.user_id,
+            pm.user_nm,
+            pm.project_role,
+            pm.created_at,
+            COALESCE(pm.user_nm || '(' || pm.user_id || ')', pm.user_id) AS label
+        FROM schedule_project_member pm
+        INNER JOIN schedule_project p ON p.project_id = pm.project_id
+        <where>
+            AND pm.project_id = #{project_id}
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    pm.user_id ILIKE CONCAT('%', #{keyword}, '%')
+                    OR pm.user_nm ILIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            <include refid="ProjectAccessWhere"/>
+        </where>
+        ORDER BY
+            CASE pm.project_role WHEN 'OWNER' THEN 0 ELSE 1 END,
+            pm.user_nm NULLS LAST,
+            pm.user_id
+    </select>
+
+    <select id="countProjectMember" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_project_member
+        WHERE project_id = #{project_id}
+          AND user_id = #{user_id}
+    </select>
+
+    <insert id="insertProjectMember" parameterType="map">
+        INSERT INTO schedule_project_member (
+            project_id,
+            user_id,
+            user_nm,
+            project_role
+        ) VALUES (
+            #{project_id},
+            #{user_id},
+            #{user_nm},
+            COALESCE(#{project_role}, 'MEMBER')
+        )
+        ON CONFLICT (project_id, user_id) DO UPDATE
+        SET
+            user_nm = COALESCE(EXCLUDED.user_nm, schedule_project_member.user_nm),
+            project_role = CASE
+                WHEN schedule_project_member.project_role = 'OWNER' THEN 'OWNER'
+                ELSE EXCLUDED.project_role
+            END
+    </insert>
+
+    <insert id="upsertProjectOwner" parameterType="map">
+        INSERT INTO schedule_project_member (
+            project_id,
+            user_id,
+            project_role
+        ) VALUES (
+            #{project_id},
+            #{owner_user_id},
+            'OWNER'
+        )
+        ON CONFLICT (project_id, user_id) DO UPDATE
+        SET project_role = 'OWNER'
+    </insert>
+
+    <delete id="deleteProjectMember" parameterType="map">
+        DELETE FROM schedule_project_member
+        WHERE project_id = #{project_id}
+          AND user_id = #{user_id}
+          AND project_role != 'OWNER'
+    </delete>
 </mapper>

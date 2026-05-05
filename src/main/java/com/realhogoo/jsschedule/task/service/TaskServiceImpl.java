@@ -22,6 +22,7 @@ import java.util.Set;
 @Service
 public class TaskServiceImpl implements TaskService {
     private static final int MAX_TASK_DEPTH = 3;
+    private static final int MAX_COMMENT_LENGTH = 2000;
     private static final String DEFAULT_WBS_COLOR = "#0F766E";
     private static final Set<String> ALLOWED_TASK_TYPES = new HashSet<String>(
         Arrays.asList("GENERAL", "DEVELOPMENT", "BLOG")
@@ -90,6 +91,8 @@ public class TaskServiceImpl implements TaskService {
         if (project == null || project.isEmpty()) {
             throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
         }
+        validateProjectAccess(projectId, viewerUserId, viewerRoles);
+        validateAssignableProjectUser(projectId, assigneeUserId);
         String taskTypeCode = normalizeTaskType(project.get("project_type_code"));
         String startDate = optionalDate(params.get("start_date"), "start_date");
         String dueDate = optionalDate(params.get("due_date"), "due_date");
@@ -188,6 +191,91 @@ public class TaskServiceImpl implements TaskService {
             response.put("message", exception.getMessage() == null ? "route lookup failed" : exception.getMessage());
         }
         return response;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTaskCommentList(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> request = params == null ? Collections.<String, Object>emptyMap() : params;
+        Long taskId = asLong(request.get("task_id"), "task_id");
+        if (taskId == null) {
+            throw ApiException.badRequest("task_id is required");
+        }
+
+        Map<String, Object> query = taskAccessQuery(taskId, viewerUserId, viewerRoles);
+        getTaskDetail(Collections.<String, Object>singletonMap("task_id", taskId), viewerUserId, viewerRoles);
+        return taskMapper.selectTaskCommentList(query);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> saveTaskComment(Map<String, Object> params, String viewerUserId, String viewerUserNm, List<String> viewerRoles) {
+        if (params == null) {
+            throw ApiException.badRequest("request body is required");
+        }
+
+        Long taskId = asLong(params.get("task_id"), "task_id");
+        Long parentCommentId = asLong(params.get("parent_comment_id"), "parent_comment_id");
+        if (taskId == null) {
+            throw ApiException.badRequest("task_id is required");
+        }
+        String commentContent = requiredText(params.get("comment_content"), "comment_content is required");
+        if (commentContent.length() > MAX_COMMENT_LENGTH) {
+            throw ApiException.badRequest("comment_content length must be 2000 or less");
+        }
+
+        Map<String, Object> task = getTaskDetail(Collections.<String, Object>singletonMap("task_id", taskId), viewerUserId, viewerRoles);
+        Long projectId = asLong(task.get("project_id"), "project_id");
+        validateAssignableProjectUser(projectId, viewerUserId);
+        if (parentCommentId != null) {
+            validateReplyTarget(taskId, parentCommentId);
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("task_id", taskId);
+        payload.put("parent_comment_id", parentCommentId);
+        payload.put("comment_content", commentContent);
+        payload.put("created_by_user_id", viewerUserId);
+        payload.put("created_by_user_nm", optionalText(viewerUserNm) == null ? viewerUserId : optionalText(viewerUserNm));
+        taskMapper.insertTaskComment(payload);
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("comment_id", payload.get("comment_id"));
+        result.put("task_id", taskId);
+        result.put("parent_comment_id", parentCommentId);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> deleteTaskComment(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        if (params == null) {
+            throw ApiException.badRequest("request body is required");
+        }
+        Long commentId = asLong(params.get("comment_id"), "comment_id");
+        if (commentId == null) {
+            throw ApiException.badRequest("comment_id is required");
+        }
+
+        Map<String, Object> comment = taskMapper.selectTaskCommentReference(Collections.<String, Object>singletonMap("comment_id", commentId));
+        if (comment == null || comment.isEmpty()) {
+            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "comment not found");
+        }
+        Long taskId = asLong(comment.get("task_id"), "task_id");
+        getTaskDetail(Collections.<String, Object>singletonMap("task_id", taskId), viewerUserId, viewerRoles);
+
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("comment_id", commentId);
+        payload.put("viewer_user_id", viewerUserId);
+        payload.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        int deleted = taskMapper.deleteTaskComment(payload);
+        if (deleted == 0) {
+            throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "comment delete permission is required");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("comment_id", commentId);
+        result.put("deleted", deleted);
+        return result;
     }
 
     private String normalizeRouteAddress(String address) {
@@ -383,6 +471,58 @@ public class TaskServiceImpl implements TaskService {
             return Integer.valueOf(progress);
         } catch (NumberFormatException exception) {
             throw ApiException.badRequest("progress_rate must be numeric");
+        }
+    }
+
+    private void validateAssignableProjectUser(Long projectId, String assigneeUserId) {
+        if (assigneeUserId == null) {
+            return;
+        }
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        query.put("user_id", assigneeUserId);
+        if (taskMapper.countAssignableProjectUser(query) == 0) {
+            throw ApiException.badRequest("assignee_user_id must be a project member");
+        }
+    }
+
+    private void validateReplyTarget(Long taskId, Long parentCommentId) {
+        Map<String, Object> query = Collections.<String, Object>singletonMap("comment_id", parentCommentId);
+        Map<String, Object> parent = taskMapper.selectTaskCommentReference(query);
+        if (parent == null || parent.isEmpty()) {
+            throw ApiException.badRequest("parent_comment_id is invalid");
+        }
+        Long parentTaskId = asLong(parent.get("task_id"), "task_id");
+        Long parentParentCommentId = asLong(parent.get("parent_comment_id"), "parent_comment_id");
+        if (!taskId.equals(parentTaskId)) {
+            throw ApiException.badRequest("parent_comment_id is invalid");
+        }
+        if (parentParentCommentId != null) {
+            throw ApiException.badRequest("reply depth must be 1");
+        }
+
+        Map<String, Object> countQuery = new LinkedHashMap<String, Object>();
+        countQuery.put("parent_comment_id", parentCommentId);
+        if (taskMapper.countTaskCommentReply(countQuery) > 0) {
+            throw ApiException.badRequest("reply already exists");
+        }
+    }
+
+    private Map<String, Object> taskAccessQuery(Long taskId, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("task_id", taskId);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        return query;
+    }
+
+    private void validateProjectAccess(Long projectId, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        if (taskMapper.countAccessibleProject(query) == 0) {
+            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
         }
     }
 

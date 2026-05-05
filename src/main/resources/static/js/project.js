@@ -26,6 +26,11 @@
         global.location.href = "/task-form.html?project_id=" + encodeURIComponent(projectId);
     }
 
+    function navigateToMembers(projectId) {
+        if (!projectId) return;
+        global.location.href = "/project-member.html?project_id=" + encodeURIComponent(projectId);
+    }
+
     function readFilters() {
         return {
             keyword: UX.byId("filterKeyword").value.trim(),
@@ -93,7 +98,7 @@
                 + "<td><button type=\"button\" class=\"row-link\" data-project-id=\"" + UX.esc(id) + "\">"
                 + "<span class=\"row-title\">" + UX.esc(project.project_name || "-") + "</span>"
                 + "<span class=\"row-sub\">" + UX.esc(project.project_key || "-") + "</span>"
-                + "</button></td>"
+                + "</button><div class=\"row-actions\"><button type=\"button\" class=\"btn btn-mini project-member-action\" data-project-id=\"" + UX.esc(id) + "\">\uC0AC\uC6A9\uC790 \uAD00\uB9AC</button></div></td>"
                 + "<td><span class=\"status-chip " + UX.esc(statusClass(project.project_status)) + "\">" + UX.esc(projectStatusLabel(project.project_status)) + "</span></td>"
                 + "<td>" + UX.esc(formatPeriod(project.start_date, project.end_date)) + "</td>"
                 + "<td>" + UX.esc(project.owner_user_id || "-") + "</td>"
@@ -105,6 +110,12 @@
         UX.qsa(".row-link", target).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
                 navigateToTasks(button.getAttribute("data-project-id"));
+            });
+        });
+        UX.qsa(".project-member-action", target).forEach(function (button) {
+            UX.bindOnce(button, "click", function (event) {
+                event.stopPropagation();
+                navigateToMembers(button.getAttribute("data-project-id"));
             });
         });
     }

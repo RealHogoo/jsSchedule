@@ -108,6 +108,8 @@ public class ProjectServiceImpl implements ProjectService {
             }
             projectMapper.updateProject(payload);
         }
+        payload.put("project_id", projectId);
+        projectMapper.upsertProjectOwner(payload);
 
         return getProjectDetail(Collections.<String, Object>singletonMap("project_id", projectId), ownerUserId, Collections.singletonList("ROLE_ADMIN"));
     }
@@ -133,6 +135,144 @@ public class ProjectServiceImpl implements ProjectService {
             return (List<Map<String, Object>>) data;
         }
         return Collections.emptyList();
+    }
+
+    @Override
+    public List<Map<String, Object>> getProjectMemberList(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = memberQuery(params, viewerUserId, viewerRoles);
+        return projectMapper.selectProjectMemberList(query);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getProjectMemberCandidateOptions(
+        Map<String, Object> params,
+        String accessToken,
+        String viewerUserId,
+        List<String> viewerRoles
+    ) {
+        Map<String, Object> query = memberQuery(params, viewerUserId, viewerRoles);
+        Map<String, Object> request = new LinkedHashMap<String, Object>();
+        request.put("keyword", optionalText(params == null ? null : params.get("keyword")));
+
+        Map<String, Object> response = adminServiceClient.userOptions(request, accessToken);
+        if (response == null || !Boolean.TRUE.equals(response.get("ok"))) {
+            throw new ApiException(ApiCode.SERVER_ERROR, HttpStatus.BAD_GATEWAY, "failed to load member candidates");
+        }
+
+        Object data = response.get("data");
+        if (!(data instanceof List)) {
+            return Collections.emptyList();
+        }
+
+        List<Map<String, Object>> existingMembers = projectMapper.selectProjectMemberList(query);
+        Set<String> existingUserIds = new HashSet<String>();
+        for (Map<String, Object> member : existingMembers) {
+            String userId = optionalText(member.get("user_id"));
+            if (userId != null) {
+                existingUserIds.add(userId);
+            }
+        }
+
+        List<Map<String, Object>> candidates = new java.util.ArrayList<Map<String, Object>>();
+        for (Map<String, Object> user : (List<Map<String, Object>>) data) {
+            String userId = optionalText(user.get("user_id"));
+            if (userId == null || existingUserIds.contains(userId)) {
+                continue;
+            }
+            candidates.add(user);
+        }
+        return candidates;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> addProjectMember(Map<String, Object> params, String accessToken) {
+        if (params == null) {
+            throw ApiException.badRequest("request body is required");
+        }
+        Long projectId = asLong(params.get("project_id"));
+        if (projectId == null) {
+            throw ApiException.badRequest("project_id is required");
+        }
+        if (projectMapper.countProjectById(Collections.<String, Object>singletonMap("project_id", projectId)) == 0) {
+            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
+        }
+
+        String userId = requiredText(params.get("user_id"), "user_id is required");
+        Map<String, Object> verifiedUser = findActiveAdminUser(userId, accessToken);
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("project_id", projectId);
+        payload.put("user_id", userId);
+        payload.put("user_nm", optionalText(verifiedUser.get("user_nm")));
+        payload.put("project_role", "MEMBER");
+        projectMapper.insertProjectMember(payload);
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("project_id", projectId);
+        result.put("user_id", userId);
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findActiveAdminUser(String userId, String accessToken) {
+        Map<String, Object> request = new LinkedHashMap<String, Object>();
+        request.put("keyword", userId);
+
+        Map<String, Object> response = adminServiceClient.userOptions(request, accessToken);
+        if (response == null || !Boolean.TRUE.equals(response.get("ok"))) {
+            throw new ApiException(ApiCode.SERVER_ERROR, HttpStatus.BAD_GATEWAY, "failed to verify project member");
+        }
+
+        Object data = response.get("data");
+        if (data instanceof List) {
+            for (Map<String, Object> user : (List<Map<String, Object>>) data) {
+                String candidateUserId = optionalText(user.get("user_id"));
+                if (userId.equals(candidateUserId)) {
+                    return user;
+                }
+            }
+        }
+        throw ApiException.badRequest("user_id must be an active admin user");
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> deleteProjectMember(Map<String, Object> params) {
+        if (params == null) {
+            throw ApiException.badRequest("request body is required");
+        }
+        Long projectId = asLong(params.get("project_id"));
+        if (projectId == null) {
+            throw ApiException.badRequest("project_id is required");
+        }
+        String userId = requiredText(params.get("user_id"), "user_id is required");
+
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("project_id", projectId);
+        payload.put("user_id", userId);
+        int deleted = projectMapper.deleteProjectMember(payload);
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("project_id", projectId);
+        result.put("user_id", userId);
+        result.put("deleted", deleted);
+        return result;
+    }
+
+    private Map<String, Object> memberQuery(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> request = params == null ? Collections.<String, Object>emptyMap() : params;
+        Long projectId = asLong(request.get("project_id"));
+        if (projectId == null) {
+            throw ApiException.badRequest("project_id is required");
+        }
+
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        query.put("keyword", optionalText(request.get("keyword")));
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", RoleSupport.isAdmin(viewerRoles));
+        return query;
     }
 
     private String requiredText(Object value, String message) {

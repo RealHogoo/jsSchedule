@@ -14,6 +14,7 @@
             t.task_status,
             t.priority,
             t.assignee_user_id,
+            assignee.user_nm AS assignee_user_nm,
             t.start_date,
             t.due_date,
             t.actual_start_date,
@@ -30,11 +31,13 @@
         INNER JOIN schedule_project p ON p.project_id = t.project_id
         LEFT JOIN schedule_task parent ON parent.task_id = t.parent_task_id
         LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
+        LEFT JOIN schedule_project_member assignee
+          ON assignee.project_id = t.project_id
+         AND assignee.user_id = t.assignee_user_id
         <where>
             <if test="viewer_is_admin == null or viewer_is_admin == false">
                 AND (
-                    t.assignee_user_id = #{viewer_user_id}
-                    OR p.owner_user_id = #{viewer_user_id}
+                    p.owner_user_id = #{viewer_user_id}
                     OR EXISTS (
                         SELECT 1
                         FROM schedule_project_member pm
@@ -74,6 +77,7 @@
             t.task_status,
             t.priority,
             t.assignee_user_id,
+            assignee.user_nm AS assignee_user_nm,
             t.start_date,
             t.due_date,
             t.actual_start_date,
@@ -93,12 +97,14 @@
         INNER JOIN schedule_project p ON p.project_id = t.project_id
         LEFT JOIN schedule_task parent ON parent.task_id = t.parent_task_id
         LEFT JOIN schedule_milestone m ON m.milestone_id = t.milestone_id
+        LEFT JOIN schedule_project_member assignee
+          ON assignee.project_id = t.project_id
+         AND assignee.user_id = t.assignee_user_id
         <where>
             AND t.task_id = #{task_id}
             <if test="viewer_is_admin == null or viewer_is_admin == false">
                 AND (
-                    t.assignee_user_id = #{viewer_user_id}
-                    OR p.owner_user_id = #{viewer_user_id}
+                    p.owner_user_id = #{viewer_user_id}
                     OR EXISTS (
                         SELECT 1
                         FROM schedule_project_member pm
@@ -121,6 +127,18 @@
         WHERE task_id = #{task_id}
     </select>
 
+    <select id="selectTaskCommentReference" parameterType="map" resultType="map">
+        SELECT
+            c.comment_id,
+            c.task_id,
+            c.parent_comment_id,
+            c.created_by_user_id,
+            t.project_id
+        FROM schedule_task_comment c
+        INNER JOIN schedule_task t ON t.task_id = c.task_id
+        WHERE c.comment_id = #{comment_id}
+    </select>
+
     <select id="selectProjectReference" parameterType="map" resultType="map">
         SELECT
             project_id,
@@ -140,6 +158,86 @@
             task_title
         FROM schedule_task
         WHERE project_id = #{project_id}
+    </select>
+
+    <select id="selectTaskCommentList" parameterType="map" resultType="map">
+        SELECT
+            c.comment_id,
+            c.task_id,
+            c.parent_comment_id,
+            c.comment_content,
+            c.created_by_user_id,
+            c.created_by_user_nm,
+            c.created_at,
+            c.updated_at,
+            CASE WHEN EXISTS (
+                SELECT 1
+                FROM schedule_task_comment reply
+                WHERE reply.parent_comment_id = c.comment_id
+            ) THEN TRUE ELSE FALSE END AS has_reply
+        FROM schedule_task_comment c
+        INNER JOIN schedule_task t ON t.task_id = c.task_id
+        INNER JOIN schedule_project p ON p.project_id = t.project_id
+        <where>
+            AND c.task_id = #{task_id}
+            <if test="viewer_is_admin == null or viewer_is_admin == false">
+                AND (
+                    p.owner_user_id = #{viewer_user_id}
+                    OR EXISTS (
+                        SELECT 1
+                        FROM schedule_project_member pm
+                        WHERE pm.project_id = p.project_id
+                          AND pm.user_id = #{viewer_user_id}
+                    )
+                )
+            </if>
+        </where>
+        ORDER BY
+            COALESCE(c.parent_comment_id, c.comment_id),
+            CASE WHEN c.parent_comment_id IS NULL THEN 0 ELSE 1 END,
+            c.created_at,
+            c.comment_id
+    </select>
+
+    <select id="countAccessibleProject" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_project p
+        WHERE p.project_id = #{project_id}
+        <if test="viewer_is_admin == null or viewer_is_admin == false">
+          AND (
+              p.owner_user_id = #{viewer_user_id}
+              OR EXISTS (
+                  SELECT 1
+                  FROM schedule_project_member pm
+                  WHERE pm.project_id = p.project_id
+                    AND pm.user_id = #{viewer_user_id}
+              )
+          )
+        </if>
+    </select>
+
+    <select id="countAssignableProjectUser" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_project p
+        WHERE p.project_id = #{project_id}
+          AND (
+              p.owner_user_id = #{user_id}
+              OR EXISTS (
+                  SELECT 1
+                  FROM schedule_project_member pm
+                  WHERE pm.project_id = p.project_id
+                    AND pm.user_id = #{user_id}
+              )
+          )
+    </select>
+
+    <select id="countTaskCommentReply" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM schedule_task_comment
+        WHERE parent_comment_id = #{parent_comment_id}
+        <if test="comment_id != null">
+            AND comment_id != #{comment_id}
+        </if>
     </select>
 
     <update id="syncTaskSequence">
@@ -213,4 +311,29 @@
             updated_at = CURRENT_TIMESTAMP
         WHERE task_id = #{task_id}
     </update>
+
+    <insert id="insertTaskComment" parameterType="map" useGeneratedKeys="true" keyProperty="comment_id" keyColumn="comment_id">
+        INSERT INTO schedule_task_comment (
+            task_id,
+            parent_comment_id,
+            comment_content,
+            created_by_user_id,
+            created_by_user_nm
+        ) VALUES (
+            #{task_id},
+            #{parent_comment_id},
+            #{comment_content},
+            #{created_by_user_id},
+            #{created_by_user_nm}
+        )
+    </insert>
+
+    <delete id="deleteTaskComment" parameterType="map">
+        DELETE FROM schedule_task_comment
+        WHERE comment_id = #{comment_id}
+          AND (
+              #{viewer_is_admin} = TRUE
+              OR created_by_user_id = #{viewer_user_id}
+          )
+    </delete>
 </mapper>

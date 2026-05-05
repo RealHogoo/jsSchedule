@@ -41,4 +41,28 @@ public class ProjectController {
         String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
         return ApiResponse.ok(projectService.getProjectManagerOptions(body, accessToken), request);
     }
+
+    @PostMapping("/project/member/list.json")
+    public ApiResponse<Object> memberList(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        return ApiResponse.ok(projectService.getProjectMemberList(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
+    }
+
+    @PostMapping("/project/member/candidate-options.json")
+    public ApiResponse<Object> memberCandidateOptions(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
+        return ApiResponse.ok(projectService.getProjectMemberCandidateOptions(body, accessToken, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
+    }
+
+    @PostMapping("/project/member/add.json")
+    public ApiResponse<Object> addMember(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
+        String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
+        return ApiResponse.ok(projectService.addProjectMember(body, accessToken), request);
+    }
+
+    @PostMapping("/project/member/delete.json")
+    public ApiResponse<Object> deleteMember(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
+        return ApiResponse.ok(projectService.deleteProjectMember(body), request);
+    }
 }

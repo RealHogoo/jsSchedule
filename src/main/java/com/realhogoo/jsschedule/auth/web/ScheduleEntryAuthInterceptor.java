@@ -1,6 +1,7 @@
 package com.realhogoo.jsschedule.auth.web;
 
 import com.realhogoo.jsschedule.auth.ServicePermissionSupport;
+import com.realhogoo.jsschedule.auth.RoleSupport;
 import com.realhogoo.jsschedule.integration.admin.AdminServiceClient;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.net.InetAddress;
 import java.util.Map;
 
 @Component
@@ -40,12 +42,13 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         }
 
         String token = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
-        if (isValidToken(token)) {
+        Map<String, Object> currentUser = fetchCurrentUser(token);
+        if (currentUser != null && !currentUser.isEmpty()) {
             if ("/".equals(path) || "/index.html".equals(path)) {
                 response.sendRedirect(buildPublicRequestUrl(request, "/project.html"));
                 return false;
             }
-            if (!hasRequiredPermission(path, token)) {
+            if (!hasRequiredPermission(path, currentUser)) {
                 response.sendRedirect(buildPublicRequestUrl(request, "/error.html")
                     + "?code=S4003&message="
                     + URLEncoder.encode("권한이 없습니다. 관리자에게 권한 설정을 요청하세요.", StandardCharsets.UTF_8));
@@ -70,32 +73,31 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
             || "/task-form.html".equals(path);
     }
 
-    private boolean isValidToken(String token) {
+    private Map<String, Object> fetchCurrentUser(String token) {
         if (token == null || token.trim().isEmpty()) {
-            return false;
+            return null;
         }
         try {
-            Map<String, Object> currentUser = adminServiceClient.fetchCurrentUser(token.trim());
-            return currentUser != null && !currentUser.isEmpty();
+            return adminServiceClient.fetchCurrentUser(token.trim());
         } catch (Exception exception) {
-            return false;
+            return null;
         }
     }
 
-    private boolean hasRequiredPermission(String path, String token) {
+    @SuppressWarnings("unchecked")
+    private boolean hasRequiredPermission(String path, Map<String, Object> currentUser) {
         if (!requiresServicePermission(path)) {
             return true;
         }
-        try {
-            Map<String, Object> currentUser = adminServiceClient.fetchCurrentUser(token.trim());
-            return ServicePermissionSupport.hasPermission(
-                ServicePermissionSupport.parsePermissions(currentUser.get("service_permissions")),
-                ServicePermissionSupport.SCHEDULE_SERVICE,
-                requiredPermission(path)
-            );
-        } catch (Exception exception) {
-            return false;
+        Object roles = currentUser.get("roles");
+        if (roles instanceof java.util.List && RoleSupport.isAdmin((java.util.List<String>) roles)) {
+            return true;
         }
+        return ServicePermissionSupport.hasPermission(
+            ServicePermissionSupport.parsePermissions(currentUser.get("service_permissions")),
+            ServicePermissionSupport.SCHEDULE_SERVICE,
+            requiredPermission(path)
+        );
     }
 
     private boolean requiresServicePermission(String path) {
@@ -161,7 +163,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private String forwardedScheme(HttpServletRequest request) {
-        String value = firstHeaderValue(request.getHeader("X-Forwarded-Proto"));
+        String value = isTrustedForwardedSource(request) ? firstHeaderValue(request.getHeader("X-Forwarded-Proto")) : null;
         if (value != null) {
             return value;
         }
@@ -173,7 +175,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private String forwardedHost(HttpServletRequest request) {
-        String value = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
+        String value = isTrustedForwardedSource(request) ? firstHeaderValue(request.getHeader("X-Forwarded-Host")) : null;
         if (value != null) {
             try {
                 URI uri = URI.create("http://" + value);
@@ -190,7 +192,8 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     }
 
     private int forwardedPort(HttpServletRequest request, String scheme) {
-        String forwardedPort = firstHeaderValue(request.getHeader("X-Forwarded-Port"));
+        boolean trustedForwardedSource = isTrustedForwardedSource(request);
+        String forwardedPort = trustedForwardedSource ? firstHeaderValue(request.getHeader("X-Forwarded-Port")) : null;
         if (forwardedPort != null) {
             try {
                 return normalizePort(Integer.parseInt(forwardedPort), scheme);
@@ -198,7 +201,7 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
             }
         }
 
-        String forwardedHost = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
+        String forwardedHost = trustedForwardedSource ? firstHeaderValue(request.getHeader("X-Forwarded-Host")) : null;
         if (forwardedHost != null && forwardedHost.contains(":")) {
             try {
                 return normalizePort(Integer.parseInt(forwardedHost.substring(forwardedHost.lastIndexOf(':') + 1).trim()), scheme);
@@ -244,5 +247,24 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     private boolean isDefaultPort(String scheme, int port) {
         return ("https".equalsIgnoreCase(scheme) && port == 443)
             || ("http".equalsIgnoreCase(scheme) && port == 80);
+    }
+
+    private boolean isTrustedForwardedSource(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String configured = System.getProperty("app.trust-forwarded-headers");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("TRUST_FORWARDED_HEADERS");
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

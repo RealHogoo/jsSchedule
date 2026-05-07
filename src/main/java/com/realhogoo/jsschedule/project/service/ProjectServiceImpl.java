@@ -187,7 +187,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public Map<String, Object> addProjectMember(Map<String, Object> params, String accessToken) {
+    public Map<String, Object> addProjectMember(Map<String, Object> params, String accessToken, String viewerUserId, List<String> viewerRoles) {
         if (params == null) {
             throw ApiException.badRequest("request body is required");
         }
@@ -195,9 +195,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (projectId == null) {
             throw ApiException.badRequest("project_id is required");
         }
-        if (projectMapper.countProjectById(Collections.<String, Object>singletonMap("project_id", projectId)) == 0) {
-            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
-        }
+        ensureProjectMemberManager(projectId, viewerUserId, viewerRoles);
 
         String userId = requiredText(params.get("user_id"), "user_id is required");
         Map<String, Object> verifiedUser = findActiveAdminUser(userId, accessToken);
@@ -238,7 +236,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    public Map<String, Object> deleteProjectMember(Map<String, Object> params) {
+    public Map<String, Object> deleteProjectMember(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {
         if (params == null) {
             throw ApiException.badRequest("request body is required");
         }
@@ -246,6 +244,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (projectId == null) {
             throw ApiException.badRequest("project_id is required");
         }
+        ensureProjectMemberManager(projectId, viewerUserId, viewerRoles);
         String userId = requiredText(params.get("user_id"), "user_id is required");
 
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
@@ -258,6 +257,25 @@ public class ProjectServiceImpl implements ProjectService {
         result.put("user_id", userId);
         result.put("deleted", deleted);
         return result;
+    }
+
+    private void ensureProjectMemberManager(Long projectId, String viewerUserId, List<String> viewerRoles) {
+        Map<String, Object> query = new LinkedHashMap<String, Object>();
+        query.put("project_id", projectId);
+        query.put("viewer_user_id", viewerUserId);
+        query.put("viewer_is_admin", Boolean.TRUE);
+        Map<String, Object> project = projectMapper.selectProjectDetail(query);
+        if (project == null || project.isEmpty()) {
+            throw new ApiException(ApiCode.NOT_FOUND, HttpStatus.NOT_FOUND, "project not found");
+        }
+        if (RoleSupport.isAdmin(viewerRoles)) {
+            return;
+        }
+        String ownerUserId = optionalText(project.get("owner_user_id"));
+        if (ownerUserId != null && ownerUserId.equals(viewerUserId)) {
+            return;
+        }
+        throw new ApiException(ApiCode.FORBIDDEN, HttpStatus.FORBIDDEN, "project owner permission is required");
     }
 
     private Map<String, Object> memberQuery(Map<String, Object> params, String viewerUserId, List<String> viewerRoles) {

@@ -48,11 +48,13 @@ public class TaskController {
 
     @PostMapping("/task/comment/save.json")
     public ApiResponse<Object> saveComment(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(taskService.saveTaskComment(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/task/comment/delete.json")
     public ApiResponse<Object> deleteComment(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         return ApiResponse.ok(taskService.deleteTaskComment(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 }

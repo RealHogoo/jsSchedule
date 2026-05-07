@@ -18,9 +18,11 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class AdminServiceClient {
+    private static final long CURRENT_USER_CACHE_TTL_MILLIS = 5000L;
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
         new ParameterizedTypeReference<Map<String, Object>>() {
@@ -33,6 +35,7 @@ public class AdminServiceClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String adminServiceBaseUrl;
+    private final ConcurrentHashMap<String, CachedCurrentUser> currentUserCache = new ConcurrentHashMap<String, CachedCurrentUser>();
 
     public AdminServiceClient(
         RestTemplate restTemplate,
@@ -49,12 +52,23 @@ public class AdminServiceClient {
         if (accessToken == null || accessToken.trim().isEmpty()) {
             return Collections.emptyMap();
         }
+        String token = accessToken.trim();
+        long now = System.currentTimeMillis();
+        CachedCurrentUser cached = currentUserCache.get(token);
+        if (cached != null && cached.expiresAtMillis > now) {
+            return new LinkedHashMap<String, Object>(cached.currentUser);
+        }
 
-        Map<String, Object> response = post("/auth/me.json", Collections.<String, Object>emptyMap(), accessToken);
+        Map<String, Object> response = post("/auth/me.json", Collections.<String, Object>emptyMap(), token);
         Object data = response.get("data");
         if (data instanceof Map) {
-            return (Map<String, Object>) data;
+            Map<String, Object> currentUser = new LinkedHashMap<String, Object>((Map<String, Object>) data);
+            if (!currentUser.isEmpty()) {
+                currentUserCache.put(token, new CachedCurrentUser(currentUser, now + CURRENT_USER_CACHE_TTL_MILLIS));
+            }
+            return currentUser;
         }
+        currentUserCache.remove(token);
         return Collections.emptyMap();
     }
 
@@ -119,5 +133,15 @@ public class AdminServiceClient {
         fallback.put("message", statusCode.value() == 401 ? "로그인이 필요합니다." : "어드민 서비스 요청에 실패했습니다.");
         fallback.put("data", null);
         return fallback;
+    }
+
+    private static final class CachedCurrentUser {
+        private final Map<String, Object> currentUser;
+        private final long expiresAtMillis;
+
+        private CachedCurrentUser(Map<String, Object> currentUser, long expiresAtMillis) {
+            this.currentUser = currentUser;
+            this.expiresAtMillis = expiresAtMillis;
+        }
     }
 }

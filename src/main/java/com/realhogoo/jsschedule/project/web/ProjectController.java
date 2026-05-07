@@ -57,12 +57,12 @@ public class ProjectController {
     public ApiResponse<Object> addMember(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
         String accessToken = request.getAttribute("access_token") == null ? null : String.valueOf(request.getAttribute("access_token"));
-        return ApiResponse.ok(projectService.addProjectMember(body, accessToken), request);
+        return ApiResponse.ok(projectService.addProjectMember(body, accessToken, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 
     @PostMapping("/project/member/delete.json")
     public ApiResponse<Object> deleteMember(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         ServicePermissionSupport.ensurePermission(request, ServicePermissionSupport.WRITE);
-        return ApiResponse.ok(projectService.deleteProjectMember(body), request);
+        return ApiResponse.ok(projectService.deleteProjectMember(body, AuthRequestSupport.viewerUserId(request), AuthRequestSupport.viewerRoles(request)), request);
     }
 }

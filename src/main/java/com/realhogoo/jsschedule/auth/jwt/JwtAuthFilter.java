@@ -20,6 +20,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -211,12 +212,12 @@ public class JwtAuthFilter implements Filter {
     }
 
     private String forwardedScheme(HttpServletRequest request) {
-        String value = request.getHeader("X-Forwarded-Proto");
+        String value = isTrustedForwardedSource(request) ? request.getHeader("X-Forwarded-Proto") : null;
         return value == null || value.trim().isEmpty() ? request.getScheme() : value.trim();
     }
 
     private String forwardedHost(HttpServletRequest request) {
-        String value = request.getHeader("X-Forwarded-Host");
+        String value = isTrustedForwardedSource(request) ? request.getHeader("X-Forwarded-Host") : null;
         if (value == null || value.trim().isEmpty()) {
             return request.getServerName();
         }
@@ -225,7 +226,7 @@ public class JwtAuthFilter implements Filter {
 
     private int forwardedPort(HttpServletRequest request) {
         String scheme = forwardedScheme(request);
-        String forwardedPort = request.getHeader("X-Forwarded-Port");
+        String forwardedPort = isTrustedForwardedSource(request) ? request.getHeader("X-Forwarded-Port") : null;
         if (forwardedPort != null && !forwardedPort.trim().isEmpty()) {
             try {
                 return normalizePort(Integer.parseInt(forwardedPort.trim()), scheme);
@@ -243,5 +244,24 @@ public class JwtAuthFilter implements Filter {
             return port;
         }
         return "https".equalsIgnoreCase(scheme) ? 443 : 80;
+    }
+
+    private boolean isTrustedForwardedSource(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String configured = System.getProperty("app.trust-forwarded-headers");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("TRUST_FORWARDED_HEADERS");
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

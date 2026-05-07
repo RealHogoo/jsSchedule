@@ -3,6 +3,7 @@ package com.realhogoo.jsschedule.auth.web;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.net.InetAddress;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -96,7 +97,7 @@ public final class AuthCookieSupport {
         if (request == null) {
             return null;
         }
-        String forwardedHost = trimToNull(firstHeaderValue(request.getHeader("X-Forwarded-Host")));
+        String forwardedHost = isTrustedForwardedSource(request) ? trimToNull(firstHeaderValue(request.getHeader("X-Forwarded-Host"))) : null;
         String host = forwardedHost == null ? trimToNull(request.getServerName()) : forwardedHost;
         if (host == null) {
             return null;
@@ -139,7 +140,26 @@ public final class AuthCookieSupport {
         if (request.isSecure()) {
             return true;
         }
-        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        String forwardedProto = isTrustedForwardedSource(request) ? request.getHeader("X-Forwarded-Proto") : null;
         return forwardedProto != null && "https".equalsIgnoreCase(forwardedProto.trim());
+    }
+
+    private static boolean isTrustedForwardedSource(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String configured = trimToNull(System.getProperty("app.trust-forwarded-headers"));
+        if (configured == null) {
+            configured = trimToNull(System.getenv("TRUST_FORWARDED_HEADERS"));
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

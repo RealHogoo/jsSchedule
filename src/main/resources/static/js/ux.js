@@ -117,6 +117,10 @@
             body: JSON.stringify(body || {})
         }).then(function (response) {
             return response.json().then(function (payload) {
+                if (isAuthInvalid(response, payload, url)) {
+                    handleUnauthorized(payload);
+                    return Promise.reject(payload);
+                }
                 if (response.status === 403 || (payload && payload.code === "S4003")) {
                     handleForbidden(payload);
                     return Promise.reject(payload);
@@ -124,6 +128,33 @@
                 return payload;
             });
         });
+    }
+
+    function isAuthInvalid(response, payload, url) {
+        if (isLoginRequest(url)) {
+            return false;
+        }
+        var code = String((payload && payload.code) || "").toUpperCase();
+        return response.status === 401 || code === "S4001" || code === "S4002" || code === "UNAUTHORIZED" || code === "AUTH_REQUIRED";
+    }
+
+    function isLoginRequest(url) {
+        return String(url || "").toLowerCase().indexOf("/login.json") >= 0;
+    }
+
+    function handleUnauthorized(payload) {
+        localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+        var message = payload && payload.message
+            ? payload.message
+            : "로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요.";
+        if (global.__SCHEDULE_AUTH_REDIRECTING) {
+            return;
+        }
+        global.__SCHEDULE_AUTH_REDIRECTING = true;
+        global.alert(message);
+        if (global.location.pathname !== "/") {
+            global.location.href = "/";
+        }
     }
 
     function normalizeForbiddenMessage(message) {

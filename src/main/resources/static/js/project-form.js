@@ -255,19 +255,16 @@
         var target = UX.byId("managerList");
         if (!target) return;
         if (!items || !items.length) {
-            target.innerHTML = "<div class=\"detail-empty\">조회된 사용자가 없습니다.</div>";
+            target.replaceChildren(emptyMessage("조회된 사용자가 없습니다."));
             return;
         }
 
-        target.innerHTML = items.map(function (item) {
+        target.replaceChildren.apply(target, items.map(function (item) {
             var userId = item.user_id || "";
             var userNm = item.user_nm || "";
             var label = item.label || managerLabel(userNm, userId);
-            return "<button type=\"button\" class=\"manager-option\" data-user-id=\"" + UX.esc(userId) + "\" data-user-nm=\"" + UX.esc(userNm) + "\">"
-                + "<strong>" + UX.esc(label) + "</strong>"
-                + "<span>" + UX.esc(userNm) + "</span>"
-                + "</button>";
-        }).join("");
+            return managerOption(userId, userNm, label);
+        }));
 
         UX.qsa(".manager-option", target).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
@@ -280,6 +277,27 @@
         });
     }
 
+    function emptyMessage(text) {
+        var element = document.createElement("div");
+        element.className = "detail-empty";
+        element.textContent = text;
+        return element;
+    }
+
+    function managerOption(userId, userNm, label) {
+        var button = document.createElement("button");
+        var title = document.createElement("strong");
+        var sub = document.createElement("span");
+        button.type = "button";
+        button.className = "manager-option";
+        button.dataset.userId = userId || "";
+        button.dataset.userNm = userNm || "";
+        title.textContent = label || "";
+        sub.textContent = userNm || "";
+        button.appendChild(title);
+        button.appendChild(sub);
+        return button;
+    }
     function loadManagerOptions() {
         var keyword = UX.byId("managerKeyword").value.trim();
         UX.byId("managerList").innerHTML = "<div class=\"detail-empty\">사용자 목록을 조회하는 중입니다.</div>";

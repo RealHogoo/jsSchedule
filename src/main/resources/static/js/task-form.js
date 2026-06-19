@@ -1,4 +1,4 @@
-﻿
+
 (function (global) {
     "use strict";
 
@@ -658,10 +658,13 @@
     function renderAssigneeList(items) {
         var target = byId("assigneeList");
         if (!target) return;
-        if (!items || !items.length) { target.innerHTML = "<div class=\"detail-empty\">조회된 사용자가 없습니다.</div>"; return; }
-        target.innerHTML = items.map(function (item) {
-            return "<button type=\"button\" class=\"manager-option\" data-user-id=\"" + esc(item.user_id || "") + "\" data-user-nm=\"" + esc(item.user_nm || "") + "\"><strong>" + esc(userLabel(item.user_nm || "", item.user_id || "")) + "</strong><span>" + esc(item.user_nm || "") + "</span></button>";
-        }).join("");
+        if (!items || !items.length) {
+            target.replaceChildren(emptyMessage("조회된 사용자가 없습니다."));
+            return;
+        }
+        target.replaceChildren.apply(target, items.map(function (item) {
+            return managerOption(item.user_id || "", item.user_nm || "", userLabel(item.user_nm || "", item.user_id || ""));
+        }));
         UX.qsa(".manager-option", target).forEach(function (button) {
             UX.bindOnce(button, "click", function () {
                 byId("taskAssigneeUserId").value = button.getAttribute("data-user-id") || "";
@@ -671,6 +674,27 @@
         });
     }
 
+    function emptyMessage(text) {
+        var element = document.createElement("div");
+        element.className = "detail-empty";
+        element.textContent = text;
+        return element;
+    }
+
+    function managerOption(userId, userNm, label) {
+        var button = document.createElement("button");
+        var title = document.createElement("strong");
+        var sub = document.createElement("span");
+        button.type = "button";
+        button.className = "manager-option";
+        button.dataset.userId = userId || "";
+        button.dataset.userNm = userNm || "";
+        title.textContent = label || "";
+        sub.textContent = userNm || "";
+        button.appendChild(title);
+        button.appendChild(sub);
+        return button;
+    }
     function loadAssigneeOptions() {
         byId("assigneeList").innerHTML = "<div class=\"detail-empty\">사용자 목록을 조회하는 중입니다.</div>";
         UX.requestJson("/project/member/list.json", { project_id: state.projectId, keyword: byId("assigneeKeyword").value.trim() }).then(function (response) {

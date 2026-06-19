@@ -26,10 +26,13 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
     public ScheduleEntryAuthInterceptor(
         @Lazy
         AdminServiceClient adminServiceClient,
+        @Value("${app.env:dev}") String appEnv,
+        @Value("${admin-service.base-url}") String adminServiceBaseUrl,
         @Value("${admin-service.public-base-url:${admin-service.base-url}}") String adminServicePublicBaseUrl,
         @Value("${app.public-base-url:http://localhost:8082}") String publicBaseUrl
     ) {
         this.adminServiceClient = adminServiceClient;
+        validateProductionPublicUrls(appEnv, adminServiceBaseUrl, adminServicePublicBaseUrl, publicBaseUrl);
         this.adminServicePublicBaseUrl = normalizeBaseUrl(adminServicePublicBaseUrl);
         this.publicBaseUrl = normalizeBaseUrl(publicBaseUrl);
     }
@@ -44,6 +47,12 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         String token = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
         Map<String, Object> currentUser = fetchCurrentUser(token);
         if (currentUser != null && !currentUser.isEmpty()) {
+            if (isScheduleServiceDisabled(token)) {
+                response.sendRedirect(buildPublicRequestUrl(request, "/error.html")
+                    + "?code=S4003&message="
+                    + URLEncoder.encode("\uc2a4\ucf00\uc904 \uc11c\ube44\uc2a4\uac00 \uad00\ub9ac\uc790\uc5d0 \uc758\ud574 \ube44\ud65c\uc131\ud654\ub418\uc5c8\uc2b5\ub2c8\ub2e4.", StandardCharsets.UTF_8));
+                return false;
+            }
             if ("/".equals(path) || "/index.html".equals(path)) {
                 response.sendRedirect(buildPublicRequestUrl(request, "/project.html"));
                 return false;
@@ -61,6 +70,14 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
         return false;
     }
 
+    private boolean isScheduleServiceDisabled(String token) {
+        try {
+            return adminServiceClient.isServiceDisabled(ServicePermissionSupport.SCHEDULE_SERVICE, token);
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
     private boolean requiresAuthEntry(String path) {
         return "/".equals(path)
             || "/index.html".equals(path)
@@ -71,6 +88,39 @@ public class ScheduleEntryAuthInterceptor implements HandlerInterceptor {
             || "/wbs.html".equals(path)
             || "/project-form.html".equals(path)
             || "/task-form.html".equals(path);
+    }
+
+    private void validateProductionPublicUrls(String appEnv, String adminServiceBaseUrl, String adminPublicBaseUrl, String servicePublicBaseUrl) {
+        if (!isProductionEnv(appEnv)) {
+            return;
+        }
+        if (adminPublicBaseUrl == null || adminPublicBaseUrl.trim().isEmpty() || adminPublicBaseUrl.trim().equals(adminServiceBaseUrl == null ? "" : adminServiceBaseUrl.trim())) {
+            throw new IllegalStateException("ADMIN_SERVICE_PUBLIC_BASE_URL is required in production");
+        }
+        if (servicePublicBaseUrl == null || servicePublicBaseUrl.trim().isEmpty()) {
+            throw new IllegalStateException("SCHEDULE_SERVICE_PUBLIC_BASE_URL is required in production");
+        }
+        if (isLocalhostUrl(adminPublicBaseUrl) || isLocalhostUrl(servicePublicBaseUrl)) {
+            throw new IllegalStateException("Public base URLs must not use localhost in production");
+        }
+    }
+
+    private boolean isProductionEnv(String appEnv) {
+        String value = appEnv == null ? "" : appEnv.trim().toLowerCase();
+        return "prod".equals(value) || "production".equals(value);
+    }
+
+    private boolean isLocalhostUrl(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(value.trim());
+            String host = uri.getHost();
+            return "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host) || "::1".equals(host);
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private Map<String, Object> fetchCurrentUser(String token) {

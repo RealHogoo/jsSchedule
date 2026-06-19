@@ -1,7 +1,9 @@
 FROM eclipse-temurin:17-jre
 
 WORKDIR /app
-COPY build/libs/*.jar app.jar
+RUN groupadd --system app && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
+COPY --chown=app:app build/libs/*.jar app.jar
+USER app
 
 EXPOSE 8082
 

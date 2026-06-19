@@ -96,6 +96,10 @@ public class JwtAuthFilter implements Filter {
             httpRequest.setAttribute("roles", roles == null ? Collections.emptyList() : roles);
             httpRequest.setAttribute("service_permissions", ServicePermissionSupport.parsePermissions(currentUser.get("service_permissions")));
             httpRequest.setAttribute("access_token", token);
+            if (client.isServiceDisabled(ServicePermissionSupport.SCHEDULE_SERVICE, token)) {
+                writeJson(httpResponse, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "스케줄 서비스가 관리자에 의해 비활성화되었습니다.", httpRequest));
+                return;
+            }
 
             chain.doFilter(request, response);
         } catch (Exception exception) {

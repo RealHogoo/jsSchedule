@@ -35,16 +35,19 @@ public class AdminServiceClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String adminServiceBaseUrl;
+    private final String internalApiToken;
     private final ConcurrentHashMap<String, CachedCurrentUser> currentUserCache = new ConcurrentHashMap<String, CachedCurrentUser>();
 
     public AdminServiceClient(
         RestTemplate restTemplate,
         ObjectMapper objectMapper,
-        @Value("${admin-service.base-url}") String adminServiceBaseUrl
+        @Value("${admin-service.base-url}") String adminServiceBaseUrl,
+        @Value("${admin-service.internal-api-token:}") String internalApiToken
     ) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.adminServiceBaseUrl = adminServiceBaseUrl == null ? "" : adminServiceBaseUrl.trim();
+        this.internalApiToken = internalApiToken == null ? "" : internalApiToken.trim();
     }
 
     @SuppressWarnings("unchecked")
@@ -92,6 +95,28 @@ public class AdminServiceClient {
         return post("/user/options.json", body, accessToken);
     }
 
+    public boolean isServiceDisabled(String serviceCode, String accessToken) {
+        if (serviceCode == null || serviceCode.trim().isEmpty() || internalApiToken.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> response;
+        try {
+            Map<String, Object> body = new LinkedHashMap<String, Object>();
+            body.put("service_cd", normalizeCode(serviceCode));
+            response = internalPost("/internal/service/use-status.json", body);
+        } catch (Exception exception) {
+            return false;
+        }
+        Object data = response.get("data");
+        if (!(data instanceof Map)) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = (Map<String, Object>) data;
+        return normalizeCode(serviceCode).equals(normalizeCode(row.get("service_cd")))
+            && "N".equalsIgnoreCase(String.valueOf(row.get("use_yn")));
+    }
+
     private Map<String, Object> post(String path, Map<String, Object> body, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -119,6 +144,31 @@ public class AdminServiceClient {
         }
     }
 
+    private Map<String, Object> internalPost(String path, Map<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Api-Token", internalApiToken);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<Map<String, Object>>(
+            body == null ? Collections.<String, Object>emptyMap() : body,
+            headers
+        );
+
+        try {
+            Map<String, Object> response = restTemplate.exchange(
+                adminServiceBaseUrl + path,
+                HttpMethod.POST,
+                entity,
+                MAP_TYPE
+            ).getBody();
+            return response == null ? Collections.<String, Object>emptyMap() : response;
+        } catch (HttpStatusCodeException exception) {
+            return parseErrorBody(exception.getResponseBodyAsString(), exception.getStatusCode());
+        } catch (RestClientException exception) {
+            throw new ApiException(ApiCode.SERVER_ERROR, HttpStatus.BAD_GATEWAY, "?대뱶誘??쒕퉬???붿껌???ㅽ뙣?덉뒿?덈떎.");
+        }
+    }
+
     private Map<String, Object> parseErrorBody(String body, HttpStatus statusCode) {
         if (body != null && !body.trim().isEmpty()) {
             try {
@@ -133,6 +183,13 @@ public class AdminServiceClient {
         fallback.put("message", statusCode.value() == 401 ? "로그인이 필요합니다." : "어드민 서비스 요청에 실패했습니다.");
         fallback.put("data", null);
         return fallback;
+    }
+
+    private String normalizeCode(Object value) {
+        if (value == null) {
+            return "";
+        }
+        return String.valueOf(value).trim().replace('-', '_').replace(' ', '_').toUpperCase();
     }
 
     private static final class CachedCurrentUser {
